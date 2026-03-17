@@ -3,7 +3,7 @@ window.ROCE_MOCK_DATA = {
     lastUpdated: '2026-03-16 21:40',
     retentionDays: 7,
     maxQueryHours: 24,
-    defaultRange: '4h'
+    defaultRange: '1h'
   },
   tenants: ['全部租户', '58-AI-Train', 'CN-AI-Lab', 'Edge-Inference', 'Joint-Debug'],
   flows: [
@@ -99,7 +99,7 @@ window.ROCE_MOCK_DATA = {
       tenant: 'CN-AI-Lab',
       commId: 'CC-240316-014',
       taskName: 'MoE-Train / Gradient Sync',
-      lastActive: '2026-03-16 21:15:17',
+      lastActive: '2026-03-16 18:26:17',
       hops: 5,
       diagnosisSummary: '疑似 Spine-3 出口队列拥塞，建议结合 ECN / no-buffer 告警进一步排查。',
       summary: {
@@ -137,14 +137,14 @@ window.ROCE_MOCK_DATA = {
         ecn: { unit: '%', values: [1.2, 1.8, 2.4, 8.6, 7.9, 5.4, 6.8], alerts: [3, 4, 6] }
       },
       alarms: [
-        { level: 'critical', object: 'Spine-3 / Queue7', time: '2026-03-16 21:13', summary: '出口队列 ECN 标记率高，伴随 no-buffer 丢包。', action: '优先检查 DCTCP / DCQCN 配置与负载分布' },
-        { level: 'warning', object: 'Leaf-9', time: '2026-03-16 21:14', summary: 'PFC pause 帧速率短时升高。', action: '查看上下游口速匹配与队列水线' },
-        { level: 'warning', object: 'GPU-Lab-16', time: '2026-03-16 21:15', summary: '目的端网卡 RX queue backlog 增加。', action: '排查主机端中断绑核与拥塞控制参数' }
+        { level: 'critical', object: 'Spine-3 / Queue7', time: '2026-03-16 18:13', summary: '出口队列 ECN 标记率高，伴随 no-buffer 丢包。', action: '优先检查 DCTCP / DCQCN 配置与负载分布' },
+        { level: 'warning', object: 'Leaf-9', time: '2026-03-16 18:14', summary: 'PFC pause 帧速率短时升高。', action: '查看上下游口速匹配与队列水线' },
+        { level: 'warning', object: 'GPU-Lab-16', time: '2026-03-16 18:15', summary: '目的端网卡 RX queue backlog 增加。', action: '排查主机端中断绑核与拥塞控制参数' }
       ],
       tasksOnLink: [
-        { commId: 'CC-240316-014', task: 'MoE-Train / Gradient Sync', tenant: 'CN-AI-Lab', impact: '高', window: '21:10 - 21:18' },
-        { commId: 'CC-240316-015', task: 'MoE-Train / Optimizer Update', tenant: 'CN-AI-Lab', impact: '中', window: '21:08 - 21:16' },
-        { commId: 'CC-240316-018', task: 'Dataset Shuffle', tenant: 'Joint-Debug', impact: '中', window: '21:09 - 21:12' }
+        { commId: 'CC-240316-014', task: 'MoE-Train / Gradient Sync', tenant: 'CN-AI-Lab', impact: '高', window: '18:10 - 18:28' },
+        { commId: 'CC-240316-015', task: 'MoE-Train / Optimizer Update', tenant: 'CN-AI-Lab', impact: '中', window: '18:08 - 18:22' },
+        { commId: 'CC-240316-018', task: 'Dataset Shuffle', tenant: 'Joint-Debug', impact: '中', window: '18:09 - 18:16' }
       ],
       actions: [
         '优先检查 Spine-3 出口队列与 ECN 门限是否先于 PFC 触发。',
@@ -159,7 +159,7 @@ window.ROCE_MOCK_DATA = {
     },
     {
       id: 'flow-003',
-      range: ['1h', '4h'],
+      range: ['12h', '24h'],
       srcIp: '10.88.15.21',
       srcPort: '60128',
       dstIp: '10.88.16.44',
@@ -176,7 +176,7 @@ window.ROCE_MOCK_DATA = {
       tenant: '58-AI-Train',
       commId: 'CC-240316-027',
       taskName: 'LLM-Train / Tensor Parallel',
-      lastActive: '2026-03-16 21:19:08',
+      lastActive: '2026-03-16 14:05:08',
       hops: 4,
       diagnosisSummary: '链路整体可用，但存在轻微不均衡与抖动抬升。',
       summary: {
@@ -214,12 +214,12 @@ window.ROCE_MOCK_DATA = {
         ecn: { unit: '%', values: [0.6, 0.8, 1.0, 1.2, 1.8, 2.6, 2.1], alerts: [5] }
       },
       alarms: [
-        { level: 'warning', object: 'Leaf-6', time: '2026-03-16 21:09', summary: '平面内流量分布不均衡，存在热点倾向。', action: '检查 ECMP Hash 与 AILB 策略' },
-        { level: 'warning', object: 'Leaf-11', time: '2026-03-16 21:17', summary: '瞬时 buffer 使用率升高。', action: '继续观察是否扩散至 spine' }
+        { level: 'warning', object: 'Leaf-6', time: '2026-03-16 13:49', summary: '平面内流量分布不均衡，存在热点倾向。', action: '检查 ECMP Hash 与 AILB 策略' },
+        { level: 'warning', object: 'Leaf-11', time: '2026-03-16 14:01', summary: '瞬时 buffer 使用率升高。', action: '继续观察是否扩散至 spine' }
       ],
       tasksOnLink: [
-        { commId: 'CC-240316-027', task: 'LLM-Train / Tensor Parallel', tenant: '58-AI-Train', impact: '中', window: '21:00 - 21:20' },
-        { commId: 'CC-240316-029', task: 'LLM-Train / Pipeline Sync', tenant: '58-AI-Train', impact: '低', window: '21:06 - 21:14' }
+        { commId: 'CC-240316-027', task: 'LLM-Train / Tensor Parallel', tenant: '58-AI-Train', impact: '中', window: '13:48 - 14:10' },
+        { commId: 'CC-240316-029', task: 'LLM-Train / Pipeline Sync', tenant: '58-AI-Train', impact: '低', window: '13:54 - 14:08' }
       ],
       actions: [
         '核查 ECMP 哈希策略是否导致部分并行路径利用率偏低。',
@@ -250,7 +250,7 @@ window.ROCE_MOCK_DATA = {
       tenant: 'Joint-Debug',
       commId: 'CC-240316-041',
       taskName: 'Fault-Replay / Link Regression',
-      lastActive: '2026-03-16 21:11:53',
+      lastActive: '2026-03-16 10:12:53',
       hops: 6,
       diagnosisSummary: '疑似 Leaf-14 ↔ Spine-7 路段持续拥塞并伴随配置不一致，建议立即定界。',
       summary: {
@@ -288,13 +288,13 @@ window.ROCE_MOCK_DATA = {
         ecn: { unit: '%', values: [2.4, 3.1, 4.8, 7.9, 11.6, 15.8, 14.2], alerts: [3, 4, 5, 6] }
       },
       alarms: [
-        { level: 'critical', object: 'Leaf-14', time: '2026-03-16 20:58', summary: 'PFC threshold mismatch，入口无损策略偏离基线。', action: '核查无损模板与接口 trust 配置' },
-        { level: 'critical', object: 'Spine-7 / Queue5', time: '2026-03-16 21:02', summary: '持续 no-buffer 丢包，ECN 标记延后触发。', action: '下钻检查 queue/headroom/XOFF/XON 配置' },
-        { level: 'warning', object: 'Replay-Host-09', time: '2026-03-16 21:04', summary: '训练回放任务发生多次超时重试。', action: '结合业务域日志核查训练中断原因' }
+        { level: 'critical', object: 'Leaf-14', time: '2026-03-16 09:58', summary: 'PFC threshold mismatch，入口无损策略偏离基线。', action: '核查无损模板与接口 trust 配置' },
+        { level: 'critical', object: 'Spine-7 / Queue5', time: '2026-03-16 10:02', summary: '持续 no-buffer 丢包，ECN 标记延后触发。', action: '下钻检查 queue/headroom/XOFF/XON 配置' },
+        { level: 'warning', object: 'Replay-Host-09', time: '2026-03-16 10:04', summary: '训练回放任务发生多次超时重试。', action: '结合业务域日志核查训练中断原因' }
       ],
       tasksOnLink: [
-        { commId: 'CC-240316-041', task: 'Fault-Replay / Link Regression', tenant: 'Joint-Debug', impact: '高', window: '20:50 - 21:10' },
-        { commId: 'CC-240316-043', task: 'Replay / Queue Stress', tenant: 'Joint-Debug', impact: '高', window: '20:56 - 21:12' }
+        { commId: 'CC-240316-041', task: 'Fault-Replay / Link Regression', tenant: 'Joint-Debug', impact: '高', window: '09:50 - 10:10' },
+        { commId: 'CC-240316-043', task: 'Replay / Queue Stress', tenant: 'Joint-Debug', impact: '高', window: '09:56 - 10:12' }
       ],
       actions: [
         '立即核查 Leaf-14 ↔ Spine-7 接口模板、PFC/ECN 触发门限与 trust 优先级配置。',
@@ -309,7 +309,7 @@ window.ROCE_MOCK_DATA = {
     },
     {
       id: 'flow-005',
-      range: ['1h', '4h', '12h'],
+      range: ['24h'],
       srcIp: '192.168.88.12',
       srcPort: '51001',
       dstIp: '192.168.90.31',
@@ -326,7 +326,7 @@ window.ROCE_MOCK_DATA = {
       tenant: 'Edge-Inference',
       commId: 'CC-240316-050',
       taskName: 'Inference / KV Sync',
-      lastActive: '2026-03-16 21:20:05',
+      lastActive: '2026-03-15 22:20:05',
       hops: 3,
       diagnosisSummary: '整体正常，边缘推理任务链路稳定。',
       summary: {
@@ -362,10 +362,10 @@ window.ROCE_MOCK_DATA = {
         ecn: { unit: '%', values: [0.3, 0.3, 0.4, 0.4, 0.5, 0.5, 0.4], alerts: [] }
       },
       alarms: [
-        { level: 'normal', object: 'Edge Path', time: '2026-03-16 21:00', summary: '当前路径无显著告警。', action: '无需处置' }
+        { level: 'normal', object: 'Edge Path', time: '2026-03-15 22:00', summary: '当前路径无显著告警。', action: '无需处置' }
       ],
       tasksOnLink: [
-        { commId: 'CC-240316-050', task: 'Inference / KV Sync', tenant: 'Edge-Inference', impact: '低', window: '21:00 - 21:20' }
+        { commId: 'CC-240316-050', task: 'Inference / KV Sync', tenant: 'Edge-Inference', impact: '低', window: '22:00 - 22:20' }
       ],
       actions: [
         '保持当前链路策略即可。',

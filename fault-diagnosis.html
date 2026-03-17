@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>故障一键诊断</title>
+  <link rel="icon" href="data:," />
+  <link rel="stylesheet" href="./assets/styles/main.css" />
+</head>
+<body class="app-page app-page-fault-diagnosis">
+  <header class="app-nav-shell">
+    <div class="app-brand-mark">
+      <span class="app-brand-icon">☁</span>
+    </div>
+    <nav class="product-nav">
+      <span class="product-nav-item is-disabled">首页</span>
+      <span class="product-nav-item is-disabled">设计</span>
+      <span class="product-nav-item is-disabled">部署</span>
+      <div class="product-nav-item product-nav-dropdown is-active" data-menu="analysis">
+        <button class="product-nav-trigger" type="button" aria-expanded="false">分析保障</button>
+        <div class="analysis-mega-menu" role="menu">
+          <div class="analysis-menu-column">
+            <div class="analysis-menu-title">监控</div>
+            <span class="analysis-menu-link is-disabled">物理拓扑</span>
+            <span class="analysis-menu-link is-disabled">虚拟拓扑</span>
+            <span class="analysis-menu-link is-disabled">告警管理</span>
+            <span class="analysis-menu-link is-disabled">网络日志</span>
+          </div>
+          <div class="analysis-menu-column">
+            <div class="analysis-menu-title">健康分析</div>
+            <span class="analysis-menu-link is-disabled">网络健康</span>
+            <span class="analysis-menu-link is-disabled">网络拥塞分析</span>
+            <span class="analysis-menu-link is-disabled">端口流量陡降分析</span>
+            <span class="analysis-menu-link is-disabled">光链路分析</span>
+          </div>
+          <div class="analysis-menu-column">
+            <div class="analysis-menu-title">RoCE业务分析</div>
+            <a class="analysis-menu-link" href="./index.html">AI任务</a>
+            <span class="analysis-menu-link is-disabled">服务器</span>
+            <span class="analysis-menu-link is-disabled">集合通信</span>
+            <span class="analysis-menu-link is-disabled">自适应ECN</span>
+            <span class="analysis-menu-link is-disabled">网络质量可视</span>
+          </div>
+          <div class="analysis-menu-column">
+            <div class="analysis-menu-title">诊断分析</div>
+            <a class="analysis-menu-link is-current" href="./fault-diagnosis.html">故障一键诊断</a>
+            <span class="analysis-menu-link is-disabled">DDC Ping</span>
+            <span class="analysis-menu-link is-disabled">连通性探测</span>
+          </div>
+          <div class="analysis-menu-column">
+            <div class="analysis-menu-title">采集配置</div>
+            <span class="analysis-menu-link is-disabled">遥测订阅</span>
+            <span class="analysis-menu-link is-disabled">高精度监控</span>
+          </div>
+        </div>
+      </div>
+      <span class="product-nav-item is-disabled">系统管理</span>
+    </nav>
+  </header>
+
+  <div class="page-shell diagnosis-page-shell">
+    <div class="workspace-breadcrumb">分析保障 / 诊断分析 / 故障一键诊断</div>
+
+    <main class="diagnosis-layout">
+      <aside class="diagnosis-sidebar panel">
+        <div class="diagnosis-sidebar-header">
+          <h1 class="diagnosis-sidebar-title">故障一键诊断</h1>
+          <div class="diagnosis-sidebar-actions">
+            <button class="square-action-btn square-action-btn-primary" id="openTaskModalBtn" type="button">＋</button>
+            <button class="square-action-btn" type="button" aria-disabled="true">☷</button>
+            <button class="square-action-btn" type="button" aria-disabled="true">⚙</button>
+          </div>
+        </div>
+
+        <div class="diagnosis-search-row">
+          <button class="square-filter-btn" type="button" aria-disabled="true">☰</button>
+          <label class="diagnosis-search-box">
+            <input id="taskSearchInput" type="text" placeholder="任务名称" />
+            <span class="diagnosis-search-icon">⌕</span>
+          </label>
+        </div>
+
+        <div class="diagnosis-task-list" id="diagnosisTaskList"></div>
+      </aside>
+
+      <section class="diagnosis-main">
+        <section class="diagnosis-summary-card panel" id="diagnosisSummaryCard"></section>
+
+        <section class="diagnosis-graph-card panel">
+          <div class="diagnosis-graph-toolbar">
+            <div class="diagnosis-graph-toolbar-left">
+              <button class="square-action-btn" id="refreshGraphBtn" type="button">↻</button>
+              <span class="diagnosis-toolbar-tip">可用鼠标在节点间的空白区域进行移动和缩放</span>
+            </div>
+            <button class="square-action-btn" type="button" aria-disabled="true">⤢</button>
+          </div>
+          <div class="diagnosis-graph-stage" id="diagnosisGraphStage"></div>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <div class="modal-backdrop" id="taskModalBackdrop" hidden>
+    <div class="task-modal" role="dialog" aria-modal="true" aria-labelledby="taskModalTitle">
+      <div class="task-modal-header">
+        <h2 id="taskModalTitle">新增检测任务</h2>
+        <button class="task-modal-close" id="closeTaskModalBtn" type="button">×</button>
+      </div>
+
+      <div class="task-modal-body">
+        <div class="task-form-grid">
+          <label class="task-form-row task-form-row-full">
+            <span><em>*</em> 任务名称</span>
+            <input id="taskNameInput" type="text" placeholder="请输入任务名称" />
+          </label>
+
+          <div class="task-form-row task-form-row-full">
+            <span><em>*</em> 诊断时间范围</span>
+            <div class="task-range-grid">
+              <label class="task-range-field" for="taskStartInput">
+                <span class="sr-only">诊断开始时间</span>
+                <input id="taskStartInput" type="datetime-local" />
+              </label>
+              <span class="task-range-separator">~</span>
+              <label class="task-range-field" for="taskEndInput">
+                <span class="sr-only">诊断结束时间</span>
+                <input id="taskEndInput" type="datetime-local" />
+              </label>
+            </div>
+          </div>
+
+          <div class="task-form-row task-form-row-full">
+            <span>诊断类型</span>
+            <div class="task-option-group" id="diagnosisTypeGroup">
+              <label class="task-radio-pill"><input type="radio" name="diagnosisType" value="训练中断" checked /><span>训练中断</span></label>
+              <label class="task-radio-pill"><input type="radio" name="diagnosisType" value="性能下降" /><span>性能下降</span></label>
+              <label class="task-radio-pill"><input type="radio" name="diagnosisType" value="训练卡死" /><span>训练卡死</span></label>
+            </div>
+          </div>
+
+          <div class="task-form-row task-form-row-full task-switch-row">
+            <span>连通性检测</span>
+            <label class="task-switch">
+              <input id="connectivityToggleInput" type="checkbox" />
+              <span class="task-switch-slider"></span>
+            </label>
+          </div>
+
+          <div class="task-form-row task-form-row-full" style="align-items: flex-start;">
+            <span style="padding-top: 8px;">诊断目标</span>
+            <div>
+              <div class="task-option-group" id="diagnosisTargetGroup">
+                <label class="task-radio-pill"><input type="radio" name="diagnosisTarget" value="全网" checked /><span>全网</span></label>
+                <label class="task-radio-pill"><input type="radio" name="diagnosisTarget" value="指定区域" /><span>指定区域</span></label>
+                <label class="task-radio-pill"><input type="radio" name="diagnosisTarget" value="指定服务器" /><span>指定服务器</span></label>
+                <label class="task-radio-pill"><input type="radio" name="diagnosisTarget" value="指定VLAN网络租户" /><span>指定VLAN网络租户</span></label>
+                <label class="task-radio-pill"><input type="radio" name="diagnosisTarget" value="流路径" /><span>流路径</span></label>
+              </div>
+
+              <div class="task-target-flow-list" id="targetFlowList" hidden>
+                <div class="task-flow-search">
+                  <input type="text" id="flowSearchInput" placeholder="搜索五元组 key..." />
+                </div>
+                <div class="task-flow-items" id="flowItemsContainer">
+                  <!-- Populated by JS -->
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="task-form-error" id="taskFormError" aria-live="polite"></div>
+      </div>
+
+      <div class="task-modal-footer">
+        <button class="btn btn-primary" id="confirmTaskBtn" type="button">确定</button>
+        <button class="btn btn-secondary" id="cancelTaskBtn" type="button">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="./assets/scripts/data.js"></script>
+  <script src="./assets/scripts/nav.js"></script>
+  <script src="./assets/scripts/diagnosis.js"></script>
+</body>
+</html>
+

@@ -7,8 +7,59 @@
   <link rel="icon" href="data:," />
   <link rel="stylesheet" href="./assets/styles/main.css" />
 </head>
-<body>
+<body class="app-page app-page-ai-task">
+  <header class="app-nav-shell">
+    <div class="app-brand-mark">
+      <span class="app-brand-icon">☁</span>
+    </div>
+    <nav class="product-nav">
+      <span class="product-nav-item is-disabled">首页</span>
+      <span class="product-nav-item is-disabled">设计</span>
+      <span class="product-nav-item is-disabled">部署</span>
+      <div class="product-nav-item product-nav-dropdown is-active" data-menu="analysis">
+        <button class="product-nav-trigger" type="button" aria-expanded="false">分析保障</button>
+        <div class="analysis-mega-menu" role="menu">
+          <div class="analysis-menu-column">
+            <div class="analysis-menu-title">监控</div>
+            <span class="analysis-menu-link is-disabled">物理拓扑</span>
+            <span class="analysis-menu-link is-disabled">虚拟拓扑</span>
+            <span class="analysis-menu-link is-disabled">告警管理</span>
+            <span class="analysis-menu-link is-disabled">网络日志</span>
+          </div>
+          <div class="analysis-menu-column">
+            <div class="analysis-menu-title">健康分析</div>
+            <span class="analysis-menu-link is-disabled">网络健康</span>
+            <span class="analysis-menu-link is-disabled">网络拥塞分析</span>
+            <span class="analysis-menu-link is-disabled">端口流量陡降分析</span>
+            <span class="analysis-menu-link is-disabled">光链路分析</span>
+          </div>
+          <div class="analysis-menu-column">
+            <div class="analysis-menu-title">RoCE业务分析</div>
+            <a class="analysis-menu-link is-current" href="./index.html">AI任务</a>
+            <span class="analysis-menu-link is-disabled">服务器</span>
+            <span class="analysis-menu-link is-disabled">集合通信</span>
+            <span class="analysis-menu-link is-disabled">自适应ECN</span>
+            <span class="analysis-menu-link is-disabled">网络质量可视</span>
+          </div>
+          <div class="analysis-menu-column">
+            <div class="analysis-menu-title">诊断分析</div>
+            <a class="analysis-menu-link" href="./fault-diagnosis.html">故障一键诊断</a>
+            <span class="analysis-menu-link is-disabled">DDC Ping</span>
+            <span class="analysis-menu-link is-disabled">连通性探测</span>
+          </div>
+          <div class="analysis-menu-column">
+            <div class="analysis-menu-title">采集配置</div>
+            <span class="analysis-menu-link is-disabled">遥测订阅</span>
+            <span class="analysis-menu-link is-disabled">高精度监控</span>
+          </div>
+        </div>
+      </div>
+      <span class="product-nav-item is-disabled">系统管理</span>
+    </nav>
+  </header>
+
   <div class="page-shell">
+    <div class="workspace-breadcrumb">分析保障 / RoCE业务分析 / AI任务</div>
     <header class="topbar">
       <div>
         <div class="eyebrow">ONC Analyzer / AIGC Assurance</div>
@@ -17,9 +68,21 @@
       </div>
       <div class="topbar-actions">
         <div class="header-badges">
-          <span class="badge badge-blue" data-i18n="badgeRetention">历史留存 7 天</span>
-          <span class="badge badge-violet" data-i18n="badgeRange">单次查询区间 ≤ 7 天</span>
-          <span class="badge badge-emerald" id="lastUpdatedBadge">Mock Updated</span>
+          <span class="badge badge-blue info-anchor">
+            <span data-i18n="badgeRetentionLabel">历史留存</span>
+            <button class="info-trigger" type="button" aria-expanded="false">?</button>
+            <span class="info-popover" role="tooltip"><span data-i18n="badgeRetentionHint">历史留存 7 天</span></span>
+          </span>
+          <span class="badge badge-violet info-anchor">
+            <span data-i18n="badgeRangeLabel">查询区间</span>
+            <button class="info-trigger" type="button" aria-expanded="false">?</button>
+            <span class="info-popover" role="tooltip"><span data-i18n="badgeRangeHint">单次查询区间 ≤ 7 天</span></span>
+          </span>
+          <span class="badge badge-emerald info-anchor">
+            <span data-i18n="lastUpdatedLabel">Mock 更新时间</span>
+            <button class="info-trigger" type="button" aria-expanded="false">?</button>
+            <span class="info-popover" role="tooltip"><span id="lastUpdatedHintContent">Mock Updated</span></span>
+          </span>
         </div>
       </div>
     </header>
@@ -28,17 +91,20 @@
       <section class="panel filter-panel">
         <div class="panel-header">
           <div>
-            <h2 data-i18n="queryTitle">查询过滤区</h2>
-            <p data-i18n="querySubtitle">支持自定义起止时间、租户与关键五元组联合检索</p>
+            <div class="title-with-info info-anchor">
+              <h2 data-i18n="queryTitle">查询过滤区</h2>
+              <button class="info-trigger" type="button" aria-expanded="false">?</button>
+              <span class="info-popover" role="tooltip"><span data-i18n="querySubtitleHint">支持自定义起止时间、租户与关键五元组联合检索</span></span>
+            </div>
           </div>
-          <span class="badge badge-light" data-i18n="defaultRange">默认最近 24 小时</span>
+          <span class="badge badge-light" data-i18n="defaultRange">默认最近 1 小时</span>
         </div>
 
         <div class="quick-range" id="quickRangeGroup">
-          <button class="chip" data-range="1h">最近1小时</button>
+          <button class="chip active" data-range="1h">最近1小时</button>
           <button class="chip" data-range="4h">最近4小时</button>
           <button class="chip" data-range="12h">最近12小时</button>
-          <button class="chip active" data-range="24h">最近24小时</button>
+          <button class="chip" data-range="24h">最近24小时</button>
         </div>
 
         <div class="filter-grid">
@@ -72,7 +138,11 @@
           <button class="btn btn-primary" id="searchBtn" data-i18n="search">查询</button>
           <button class="btn btn-secondary" id="resetBtn" data-i18n="reset">重置</button>
           <div class="filter-note-group">
-            <div class="hint-text" data-i18n="roceHint">RoCEv2 目的端口固定为 UDP 4791，支持按异常流路径快速定位。</div>
+            <div class="hint-text inline-hint-row info-anchor">
+              <span data-i18n="roceHintLabel">RoCEv2 检索说明</span>
+              <button class="info-trigger" type="button" aria-expanded="false">?</button>
+              <span class="info-popover" role="tooltip"><span data-i18n="roceHint">RoCEv2 目的端口固定为 UDP 4791，支持按异常流路径快速定位。</span></span>
+            </div>
             <div class="validation-text" id="timeValidationText" aria-live="polite"></div>
           </div>
         </div>
@@ -215,6 +285,7 @@
   </aside>
 
   <script src="./assets/scripts/data.js"></script>
+  <script src="./assets/scripts/nav.js"></script>
   <script src="./assets/scripts/app.js"></script>
 </body>
 </html>

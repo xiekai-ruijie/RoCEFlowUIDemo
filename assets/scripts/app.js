@@ -2,18 +2,22 @@
   const data = window.ROCE_MOCK_DATA;
   const ALL_TENANTS_VALUE = '全部租户';
   const PRESET_HOURS = { '1h': 1, '4h': 4, '12h': 12, '24h': 24 };
-  const DEFAULT_PRESET = '24h';
+  const DEFAULT_PRESET = PRESET_HOURS[data?.meta?.defaultRange] ? data.meta.defaultRange : '1h';
+  const DIAGNOSIS_PAGE_PATH = './fault-diagnosis.html';
   const MAX_RANGE_MS = 7 * 24 * 60 * 60 * 1000;
   const STATUS_PRIORITY = { critical: 0, warning: 1, normal: 2 };
 
   const TEXT = {
     pageTitle: 'AIGC3.0_RoCE流路径交互原型',
     pageSubtitle: '面向 AI 任务运维的流路径查询、拓扑还原与一键诊断工作台',
-    badgeRetention: '历史留存 7 天',
-    badgeRange: '单次查询区间 ≤ 7 天',
+    badgeRetentionLabel: '历史留存',
+    badgeRetentionHint: '历史留存 7 天',
+    badgeRangeLabel: '查询区间',
+    badgeRangeHint: '单次查询区间 ≤ 7 天',
+    lastUpdatedLabel: 'Mock 更新时间',
     queryTitle: '查询过滤区',
-    querySubtitle: '支持自定义起止时间、租户与关键五元组联合检索',
-    defaultRange: '默认最近 24 小时',
+    querySubtitleHint: '支持自定义起止时间、租户与关键五元组联合检索',
+    defaultRange: '默认最近 1 小时',
     startTime: '开始时间',
     endTime: '结束时间',
     tenant: '租户',
@@ -23,6 +27,7 @@
     dstPort: '目的端口',
     search: '查询',
     reset: '重置',
+    roceHintLabel: 'RoCEv2 检索说明',
     roceHint: 'RoCEv2 目的端口固定为 UDP 4791，支持按异常流路径快速定位。',
     listTitle: 'RoCE流路径列表',
     listCountSuffix: '条流路径结果',
@@ -90,8 +95,14 @@
     srcIpPlaceholder: '例如 10.240.229.2',
     srcPortPlaceholder: '例如 56324',
     dstIpPlaceholder: '例如 10.240.229.60',
+    infoTriggerAria: '点击查看说明',
     close: '关闭',
     topologyAria: 'RoCE流路径拓扑图',
+    interfaceIngress: '入站接口',
+    interfaceEgress: '出站接口',
+    interfaceName: '接口名称',
+    interfacePackets: '数据包',
+    interfaceBytes: '字节',
     initFailed: '原型初始化失败，请检查页面结构或 mock 数据。',
     validationRequired: '请选择完整的开始时间和结束时间。',
     validationOrder: '结束时间不能早于开始时间。',
@@ -106,7 +117,8 @@
     selectedPreset: DEFAULT_PRESET,
     selectedStatus: 'all',
     filteredFlows: [],
-    selectedFlowId: null
+    selectedFlowId: null,
+    expandedDeviceIds: []
   };
 
   const refs = {
@@ -141,7 +153,7 @@
     diagnosisDrawer: document.getElementById('diagnosisDrawer'),
     diagnosisMeta: document.getElementById('diagnosisMeta'),
     diagnosisList: document.getElementById('diagnosisList'),
-    lastUpdatedBadge: document.getElementById('lastUpdatedBadge')
+    lastUpdatedHintContent: document.getElementById('lastUpdatedHintContent')
   };
 
   function t(key) {
@@ -213,11 +225,14 @@
     document.querySelectorAll('[data-i18n]').forEach((element) => {
       element.textContent = t(element.dataset.i18n);
     });
-    refs.lastUpdatedBadge.textContent = data.meta.lastUpdated;
+    refs.lastUpdatedHintContent.textContent = data.meta.lastUpdated;
     refs.srcIpFilter.placeholder = t('srcIpPlaceholder');
     refs.srcPortFilter.placeholder = t('srcPortPlaceholder');
     refs.dstIpFilter.placeholder = t('dstIpPlaceholder');
     document.getElementById('closeDiagnosisBtn').setAttribute('aria-label', t('close'));
+    document.querySelectorAll('.info-trigger').forEach((button) => {
+      button.setAttribute('aria-label', t('infoTriggerAria'));
+    });
   }
 
   function initializeTenantOptions() {
@@ -245,6 +260,19 @@
   function syncStatusTabs() {
     document.querySelectorAll('[data-status]').forEach((button) => {
       button.classList.toggle('active', button.dataset.status === state.selectedStatus);
+    });
+  }
+
+  function closeInfoAnchors(exceptAnchor = null) {
+    document.querySelectorAll('.info-anchor.is-open').forEach((anchor) => {
+      if (exceptAnchor && anchor === exceptAnchor) {
+        return;
+      }
+      anchor.classList.remove('is-open');
+      const trigger = anchor.querySelector('.info-trigger');
+      if (trigger) {
+        trigger.setAttribute('aria-expanded', 'false');
+      }
     });
   }
 
@@ -375,7 +403,16 @@
       .join('');
   }
 
-  function openDetailDrawer(flowId, openDiagnosis = false) {
+  function navigateToDiagnosis(flowId) {
+    const url = new URL(DIAGNOSIS_PAGE_PATH, window.location.href);
+    if (flowId) {
+      url.searchParams.set('action', 'new_task');
+      url.searchParams.set('flowId', flowId);
+    }
+    window.location.href = url.toString();
+  }
+
+  function openDetailDrawer(flowId) {
     const flow = getFlowById(flowId);
     if (!flow) {
       return;
@@ -386,8 +423,7 @@
     refs.detailDrawer.setAttribute('aria-hidden', 'false');
     document.body.style.overflow = 'hidden';
     renderDetail(flow);
-
-    refs.diagnosisDrawer.classList.toggle('open', openDiagnosis);
+    refs.diagnosisDrawer.classList.remove('open');
   }
 
   function closeDetailDrawer() {
@@ -396,6 +432,8 @@
     refs.diagnosisDrawer.classList.remove('open');
     document.body.style.overflow = '';
     state.selectedFlowId = null;
+    state.expandedDeviceIds = [];
+    closeInfoAnchors();
   }
 
   function activateTab(name) {
@@ -408,6 +446,9 @@
   }
 
   function renderDetail(flow) {
+    state.expandedDeviceIds = getMatchedDevices(flow)
+      .slice(0, 1)
+      .map((device) => device.id);
     renderTopology(flow);
     renderFlowSnapshot(flow);
     renderMatchedDevices(flow);
@@ -439,8 +480,48 @@
     `;
   }
 
+  function getMatchedDevices(flow) {
+    return (flow.topology?.nodes || []).filter((node) => node.type !== 'server');
+  }
+
+  function getGeneratedDeviceTitle(node, index) {
+    const lowerLabel = String(node.label || 'device').toLowerCase();
+    const isSpine = lowerLabel.includes('spine');
+    const third = isSpine ? '1' : '0';
+    const lastOctet = isSpine ? 30 + index : 3 + index;
+    return `10.10.${third}.${lastOctet} (${lowerLabel})`;
+  }
+
+  function getResolvedDeviceDetail(node, flow, index) {
+    const detail = node.deviceDetail || {};
+    const [ingressName = 'Eth1/1', egressName = ingressName] = String(node.sub || '')
+      .split('→')
+      .map((item) => item.trim())
+      .filter(Boolean);
+
+    const ingressPackets = Math.max(4, Math.round(flow.throughput * (index + 2)));
+    const ingressBytes = Math.max(3, flow.throughput * (index + 1.2));
+    const egressPackets = Math.max(ingressPackets + 6, Math.round(ingressPackets * 1.18));
+    const egressBytes = Math.max(ingressBytes + 2.5, ingressBytes * 1.16);
+
+    return {
+      title: detail.title || getGeneratedDeviceTitle(node, index),
+      subtitle: detail.subtitle || node.sub || '',
+      ingress: {
+        interfaceName: detail.ingress?.interfaceName || ingressName,
+        packets: detail.ingress?.packets || `${ingressPackets}M packets`,
+        bytes: detail.ingress?.bytes || `${ingressBytes.toFixed(1)} GB`
+      },
+      egress: {
+        interfaceName: detail.egress?.interfaceName || egressName,
+        packets: detail.egress?.packets || `${egressPackets}M packets`,
+        bytes: detail.egress?.bytes || `${egressBytes.toFixed(1)} GB`
+      }
+    };
+  }
+
   function renderMatchedDevices(flow) {
-    const devices = (flow.topology?.nodes || []).filter((node) => node.type !== 'server');
+    const devices = getMatchedDevices(flow);
     refs.matchedDeviceCount.textContent = `(${devices.length})`;
 
     if (!hasItems(devices)) {
@@ -452,15 +533,52 @@
       <div class="matched-device-list">
         ${devices
           .map(
-            (node) => `
-              <div class="matched-device-item">
-                <span class="matched-device-chevron">›</span>
-                <div>
-                  <div class="matched-device-name">${node.label}</div>
-                  <div class="matched-device-sub">${node.sub}</div>
+            (node, index) => {
+              const detail = getResolvedDeviceDetail(node, flow, index);
+              const isExpanded = state.expandedDeviceIds.includes(node.id);
+
+              return `
+              <div class="matched-device-card ${isExpanded ? 'expanded' : ''}">
+                <button class="matched-device-toggle" type="button" data-device-toggle="${node.id}" aria-expanded="${isExpanded}">
+                  <span class="matched-device-chevron">⌄</span>
+                  <div class="matched-device-heading">
+                    <div class="matched-device-name">${detail.title}</div>
+                    <div class="matched-device-sub">${detail.subtitle}</div>
+                  </div>
+                </button>
+                <div class="matched-device-panel">
+                  <div class="device-interface-card interface-ingress">
+                    <div class="device-interface-title-row">
+                      <span class="device-interface-dot"></span>
+                      <strong>${t('interfaceIngress')}</strong>
+                    </div>
+                    <div class="device-interface-grid">
+                      <span>${t('interfaceName')}：</span>
+                      <strong>${detail.ingress.interfaceName}</strong>
+                      <span>${t('interfacePackets')}：</span>
+                      <strong>${detail.ingress.packets}</strong>
+                      <span>${t('interfaceBytes')}：</span>
+                      <strong>${detail.ingress.bytes}</strong>
+                    </div>
+                  </div>
+                  <div class="device-interface-card interface-egress">
+                    <div class="device-interface-title-row">
+                      <span class="device-interface-dot"></span>
+                      <strong>${t('interfaceEgress')}</strong>
+                    </div>
+                    <div class="device-interface-grid">
+                      <span>${t('interfaceName')}：</span>
+                      <strong>${detail.egress.interfaceName}</strong>
+                      <span>${t('interfacePackets')}：</span>
+                      <strong>${detail.egress.packets}</strong>
+                      <span>${t('interfaceBytes')}：</span>
+                      <strong>${detail.egress.bytes}</strong>
+                    </div>
+                  </div>
                 </div>
               </div>
-            `
+            `;
+            }
           )
           .join('')}
       </div>
@@ -752,10 +870,27 @@
       const detailButton = event.target.closest('[data-open-detail]');
       const diagnosisButton = event.target.closest('[data-run-diagnosis]');
       if (detailButton) {
-        openDetailDrawer(detailButton.dataset.openDetail, false);
+        openDetailDrawer(detailButton.dataset.openDetail);
       }
       if (diagnosisButton) {
-        openDetailDrawer(diagnosisButton.dataset.runDiagnosis, true);
+        navigateToDiagnosis(diagnosisButton.dataset.runDiagnosis);
+      }
+    });
+
+    refs.matchedDeviceList.addEventListener('click', (event) => {
+      const toggle = event.target.closest('[data-device-toggle]');
+      if (!toggle || !state.selectedFlowId) {
+        return;
+      }
+
+      const deviceId = toggle.dataset.deviceToggle;
+      state.expandedDeviceIds = state.expandedDeviceIds.includes(deviceId)
+        ? state.expandedDeviceIds.filter((id) => id !== deviceId)
+        : [...state.expandedDeviceIds, deviceId];
+
+      const flow = getFlowById(state.selectedFlowId);
+      if (flow) {
+        renderMatchedDevices(flow);
       }
     });
 
@@ -764,7 +899,7 @@
       if (!state.selectedFlowId) {
         return;
       }
-      refs.diagnosisDrawer.classList.add('open');
+      navigateToDiagnosis(state.selectedFlowId);
     });
     document.getElementById('closeDiagnosisBtn').addEventListener('click', () => {
       refs.diagnosisDrawer.classList.remove('open');
@@ -778,8 +913,29 @@
       activateTab(button.dataset.tab);
     });
 
+    document.addEventListener('click', (event) => {
+      const trigger = event.target.closest('.info-trigger');
+      if (trigger) {
+        const anchor = trigger.closest('.info-anchor');
+        const shouldOpen = !anchor.classList.contains('is-open');
+        closeInfoAnchors(anchor);
+        anchor.classList.toggle('is-open', shouldOpen);
+        trigger.setAttribute('aria-expanded', String(shouldOpen));
+        return;
+      }
+
+      if (!event.target.closest('.info-anchor')) {
+        closeInfoAnchors();
+      }
+    });
+
     document.addEventListener('keydown', (event) => {
       if (event.key === 'Escape') {
+        if (document.querySelector('.info-anchor.is-open')) {
+          closeInfoAnchors();
+          return;
+        }
+
         if (refs.diagnosisDrawer.classList.contains('open')) {
           refs.diagnosisDrawer.classList.remove('open');
           return;

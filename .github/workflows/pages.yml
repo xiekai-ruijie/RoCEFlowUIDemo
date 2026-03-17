@@ -26,6 +26,7 @@ jobs:
         run: |
           mkdir -p dist
           cp index.html dist/
+          cp fault-diagnosis.html dist/
           cp .nojekyll dist/
           cp -R assets dist/assets
 
