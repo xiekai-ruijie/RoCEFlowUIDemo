@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AIGC3.0_RoCE流路径交互原型</title>
+  <link rel="icon" href="data:," />
+  <link rel="stylesheet" href="./assets/styles/main.css" />
+</head>
+<body>
+  <div class="page-shell">
+    <header class="topbar">
+      <div>
+        <div class="eyebrow">ONC Analyzer / AIGC Assurance</div>
+        <h1 data-i18n="pageTitle">AIGC3.0_RoCE流路径交互原型</h1>
+        <p class="subtitle" data-i18n="pageSubtitle">面向 AI 任务运维的流路径查询、拓扑还原与一键诊断工作台</p>
+      </div>
+      <div class="topbar-actions">
+        <div class="header-badges">
+          <span class="badge badge-blue" data-i18n="badgeRetention">历史留存 7 天</span>
+          <span class="badge badge-violet" data-i18n="badgeRange">单次查询区间 ≤ 7 天</span>
+          <span class="badge badge-emerald" id="lastUpdatedBadge">Mock Updated</span>
+        </div>
+      </div>
+    </header>
+
+    <main class="layout">
+      <section class="panel filter-panel">
+        <div class="panel-header">
+          <div>
+            <h2 data-i18n="queryTitle">查询过滤区</h2>
+            <p data-i18n="querySubtitle">支持自定义起止时间、租户与关键五元组联合检索</p>
+          </div>
+          <span class="badge badge-light" data-i18n="defaultRange">默认最近 24 小时</span>
+        </div>
+
+        <div class="quick-range" id="quickRangeGroup">
+          <button class="chip" data-range="1h">最近1小时</button>
+          <button class="chip" data-range="4h">最近4小时</button>
+          <button class="chip" data-range="12h">最近12小时</button>
+          <button class="chip active" data-range="24h">最近24小时</button>
+        </div>
+
+        <div class="filter-grid">
+          <label>
+            <span data-i18n="startTime">开始时间</span>
+            <input id="startTimeFilter" type="datetime-local" />
+          </label>
+          <label>
+            <span data-i18n="endTime">结束时间</span>
+            <input id="endTimeFilter" type="datetime-local" />
+          </label>
+          <label>
+            <span data-i18n="tenant">租户</span>
+            <select id="tenantFilter"></select>
+          </label>
+          <label>
+            <span data-i18n="srcIp">源IP</span>
+            <input id="srcIpFilter" type="text" placeholder="10.240.229.2" />
+          </label>
+          <label>
+            <span data-i18n="srcPort">源端口</span>
+            <input id="srcPortFilter" type="text" placeholder="56324" />
+          </label>
+          <label>
+            <span data-i18n="dstIp">目的IP</span>
+            <input id="dstIpFilter" type="text" placeholder="10.240.229.60" />
+          </label>
+        </div>
+
+        <div class="filter-actions">
+          <button class="btn btn-primary" id="searchBtn" data-i18n="search">查询</button>
+          <button class="btn btn-secondary" id="resetBtn" data-i18n="reset">重置</button>
+          <div class="filter-note-group">
+            <div class="hint-text" data-i18n="roceHint">RoCEv2 目的端口固定为 UDP 4791，支持按异常流路径快速定位。</div>
+            <div class="validation-text" id="timeValidationText" aria-live="polite"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel list-panel">
+        <div class="panel-header list-header">
+          <div>
+            <h2 data-i18n="listTitle">RoCE流路径列表</h2>
+            <p><span id="resultCount">0</span> <span data-i18n="listCountSuffix">条流路径结果</span></p>
+          </div>
+          <div class="list-actions">
+            <div class="status-tabs" id="statusTabs">
+              <button class="status-tab active" data-status="all" data-i18n="statusAll">全部</button>
+              <button class="status-tab" data-status="normal" data-i18n="statusNormal">正常</button>
+              <button class="status-tab" data-status="warning" data-i18n="statusWarning">告警</button>
+              <button class="status-tab" data-status="critical" data-i18n="statusCritical">严重</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th data-i18n="srcIp">源IP</th>
+                <th data-i18n="srcPort">源端口</th>
+                <th data-i18n="dstIp">目的IP</th>
+                <th data-i18n="dstPort">目的端口</th>
+                <th data-i18n="throughput">流吞吐</th>
+                <th data-i18n="latency">端到端时延</th>
+                <th data-i18n="jitter">时延抖动</th>
+                <th data-i18n="loss">丢包数</th>
+                <th data-i18n="status">状态</th>
+                <th data-i18n="tenant">租户</th>
+                <th data-i18n="lastActive">最近活跃</th>
+                <th data-i18n="actions">操作</th>
+              </tr>
+            </thead>
+            <tbody id="flowTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <aside class="detail-drawer" id="detailDrawer" aria-hidden="true">
+    <div class="drawer-backdrop" id="drawerBackdrop"></div>
+    <div class="drawer-panel">
+      <header class="detail-header">
+        <div class="detail-title-text" data-i18n="detailEyebrow">流量路径详情</div>
+      </header>
+
+      <div class="detail-tabs-row">
+        <nav class="detail-tabs" id="detailTabs">
+          <button class="detail-tab active" data-tab="overview" data-i18n="tabOverview">概览与拓扑</button>
+          <button class="detail-tab" data-tab="trends" data-i18n="tabTrends">详细指标趋势</button>
+          <button class="detail-tab" data-tab="alarms" data-i18n="tabAlarms">告警记录</button>
+        </nav>
+        <button class="btn btn-primary" id="drawerDiagnosisBtn" data-i18n="startDiagnosis">一键故障诊断</button>
+      </div>
+
+      <div class="detail-content">
+        <section class="tab-panel active" data-tab-panel="overview">
+          <div class="overview-shell">
+            <aside class="overview-sidebar dark-card">
+              <div class="overview-section">
+                <h3 data-i18n="detailSectionTitle">详情</h3>
+                <div id="flowSnapshotCard"></div>
+              </div>
+              <div class="overview-divider"></div>
+              <div class="overview-section">
+                <div class="card-header-row card-header-row-tight">
+                  <h3 data-i18n="matchedDevicesTitle">匹配流的设备</h3>
+                  <span class="muted" id="matchedDeviceCount"></span>
+                </div>
+                <div id="matchedDeviceList"></div>
+              </div>
+            </aside>
+
+            <section class="overview-topology-panel dark-card">
+              <div class="card-header-row">
+                <h3 data-i18n="topologyTitle">路径拓扑</h3>
+                <span class="legend-dot critical"></span>
+              </div>
+              <div id="topologyContainer"></div>
+            </section>
+          </div>
+        </section>
+
+        <section class="tab-panel" data-tab-panel="trends">
+          <div class="detail-grid trend-grid">
+            <div class="dark-card">
+              <h3 data-i18n="throughputTrend">吞吐趋势</h3>
+              <div class="chart" id="throughputChart"></div>
+            </div>
+            <div class="dark-card">
+              <h3 data-i18n="latencyTrend">时延趋势</h3>
+              <div class="chart" id="latencyChart"></div>
+            </div>
+            <div class="dark-card">
+              <h3 data-i18n="jitterTrend">抖动趋势</h3>
+              <div class="chart" id="jitterChart"></div>
+            </div>
+            <div class="dark-card">
+              <h3 data-i18n="lossTrend">丢包趋势</h3>
+              <div class="chart" id="lossChart"></div>
+            </div>
+            <div class="dark-card">
+              <h3 data-i18n="pfcTrend">PFC趋势</h3>
+              <div class="chart" id="pfcChart"></div>
+            </div>
+            <div class="dark-card">
+              <h3 data-i18n="ecnTrend">ECN趋势</h3>
+              <div class="chart" id="ecnChart"></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="tab-panel" data-tab-panel="alarms">
+          <div class="dark-card">
+            <div class="card-header-row">
+              <h3 data-i18n="alarmListTitle">关联告警记录</h3>
+              <span class="muted" id="alarmCountLabel"></span>
+            </div>
+            <div id="alarmList"></div>
+          </div>
+        </section>
+      </div>
+
+      <aside class="diagnosis-drawer" id="diagnosisDrawer">
+        <div class="card-header-row">
+          <h3 data-i18n="diagnosisTitle">一键诊断结果</h3>
+          <button class="icon-btn icon-btn-dark" id="closeDiagnosisBtn">×</button>
+        </div>
+        <div class="diagnosis-meta" id="diagnosisMeta"></div>
+        <div id="diagnosisList"></div>
+      </aside>
+    </div>
+  </aside>
+
+  <script src="./assets/scripts/data.js"></script>
+  <script src="./assets/scripts/app.js"></script>
+</body>
+</html>
