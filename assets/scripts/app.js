@@ -27,6 +27,8 @@
     queryTitle: '查询过滤区',
     querySubtitleHint: '支持自定义起止时间、租户与关键五元组联合检索',
     defaultRange: '默认最近 1 小时',
+    timeRangeLabel: '时间范围',
+    presetRangeLabel: '快捷时间',
     startTime: '开始时间',
     endTime: '结束时间',
     tenant: '租户',
@@ -84,6 +86,11 @@
     pfcTrend: 'PFC趋势',
     ecnTrend: 'ECN趋势',
     alarmListTitle: '关联告警记录',
+    alarmHeatmapTitle: '告警热力图',
+    alarmHeatmapSubtitle: '按服务器、交换机与下联接口查看告警热度分布。',
+    alarmHeatmapServers: '服务器',
+    alarmHeatmapSwitches: '交换机',
+    alarmHeatmapInterfaces: '下联接口',
     diagnosisTitle: '一键诊断结果',
     detailKpi1: '路径ID',
     detailKpi2: '流状态',
@@ -116,6 +123,9 @@
     srcIpPlaceholder: '例如 10.240.229.2',
     srcPortPlaceholder: '例如 56324',
     dstIpPlaceholder: '例如 10.240.229.60',
+    dstPortPlaceholder: '例如 4791',
+    heatmapDateLabel: '观测日期',
+    heatmapTimeAxis: '时间轴',
     infoTriggerAria: '点击查看说明',
     close: '关闭',
     topologyAria: 'RoCE流路径拓扑图',
@@ -141,7 +151,8 @@
     selectedFlowId: null,
     expandedDeviceIds: [],
     topologyMode: 'default',
-    focusedDeviceId: null
+    focusedDeviceId: null,
+    activeHeatmapGroupId: 'servers'
   };
 
   const refs = {
@@ -151,13 +162,13 @@
     srcIpFilter: document.getElementById('srcIpFilter'),
     srcPortFilter: document.getElementById('srcPortFilter'),
     dstIpFilter: document.getElementById('dstIpFilter'),
+    dstPortFilter: document.getElementById('dstPortFilter'),
     searchBtn: document.getElementById('searchBtn'),
     resetBtn: document.getElementById('resetBtn'),
     timeValidationText: document.getElementById('timeValidationText'),
     flowTableBody: document.getElementById('flowTableBody'),
     resultCount: document.getElementById('resultCount'),
     quickRangeGroup: document.getElementById('quickRangeGroup'),
-    statusTabs: document.getElementById('statusTabs'),
     overallThroughputChart: document.getElementById('overallThroughputChart'),
     overallLatencyChart: document.getElementById('overallLatencyChart'),
     overallJitterChart: document.getElementById('overallJitterChart'),
@@ -179,11 +190,8 @@
     pfcChart: document.getElementById('pfcChart'),
     ecnChart: document.getElementById('ecnChart'),
     alarmList: document.getElementById('alarmList'),
-    alarmCountLabel: document.getElementById('alarmCountLabel'),
     detailTabs: document.getElementById('detailTabs'),
-    diagnosisDrawer: document.getElementById('diagnosisDrawer'),
-    diagnosisMeta: document.getElementById('diagnosisMeta'),
-    diagnosisList: document.getElementById('diagnosisList')
+    drawerDiagnosisBtn: document.getElementById('drawerDiagnosisBtn')
   };
 
   function t(key) {
@@ -301,7 +309,7 @@
     refs.srcIpFilter.placeholder = t('srcIpPlaceholder');
     refs.srcPortFilter.placeholder = t('srcPortPlaceholder');
     refs.dstIpFilter.placeholder = t('dstIpPlaceholder');
-    document.getElementById('closeDiagnosisBtn').setAttribute('aria-label', t('close'));
+    refs.dstPortFilter.placeholder = t('dstPortPlaceholder');
     document.querySelectorAll('.info-trigger').forEach((button) => {
       button.setAttribute('aria-label', t('infoTriggerAria'));
     });
@@ -329,11 +337,6 @@
     });
   }
 
-  function syncStatusTabs() {
-    document.querySelectorAll('[data-status]').forEach((button) => {
-      button.classList.toggle('active', button.dataset.status === state.selectedStatus);
-    });
-  }
 
   function closeInfoAnchors(exceptAnchor = null) {
     document.querySelectorAll('.info-anchor.is-open').forEach((anchor) => {
@@ -418,6 +421,7 @@
     const srcIp = refs.srcIpFilter.value.trim().toLowerCase();
     const srcPort = refs.srcPortFilter.value.trim();
     const dstIp = refs.dstIpFilter.value.trim().toLowerCase();
+    const dstPort = refs.dstPortFilter.value.trim();
 
     state.filteredFlows = data.flows
       .filter((flow) => {
@@ -428,8 +432,9 @@
         const matchesSrcIp = !srcIp || flow.srcIp.toLowerCase().includes(srcIp);
         const matchesSrcPort = !srcPort || flow.srcPort.includes(srcPort);
         const matchesDstIp = !dstIp || flow.dstIp.toLowerCase().includes(dstIp);
+        const matchesDstPort = !dstPort || flow.dstPort.includes(dstPort);
 
-        return matchesTime && matchesStatus && matchesTenant && matchesSrcIp && matchesSrcPort && matchesDstIp;
+        return matchesTime && matchesStatus && matchesTenant && matchesSrcIp && matchesSrcPort && matchesDstIp && matchesDstPort;
       })
       .sort(compareFlows);
 
@@ -519,18 +524,17 @@
     refs.detailDrawer.setAttribute('aria-hidden', 'false');
     document.body.style.overflow = 'hidden';
     renderDetail(flow);
-    refs.diagnosisDrawer.classList.remove('open');
   }
 
   function closeDetailDrawer() {
     refs.detailDrawer.classList.remove('open');
     refs.detailDrawer.setAttribute('aria-hidden', 'true');
-    refs.diagnosisDrawer.classList.remove('open');
     document.body.style.overflow = '';
     state.selectedFlowId = null;
     state.expandedDeviceIds = [];
     state.topologyMode = 'default';
     state.focusedDeviceId = null;
+    state.activeHeatmapGroupId = 'servers';
     closeInfoAnchors();
   }
 
@@ -546,6 +550,7 @@
   function renderDetail(flow) {
     state.topologyMode = 'default';
     state.focusedDeviceId = null;
+    state.activeHeatmapGroupId = flow.alarmHeatmap?.groups?.[0]?.id || 'servers';
     state.expandedDeviceIds = getMatchedDevices(flow)
       .slice(0, 1)
       .map((device) => device.id);
@@ -554,7 +559,6 @@
     renderMatchedDevices(flow);
     renderCharts(flow);
     renderAlarms(flow);
-    renderDiagnosis(flow);
     activateTab('overview');
   }
 
@@ -1101,61 +1105,70 @@
   }
 
   function renderAlarms(flow) {
-    refs.alarmCountLabel.textContent = `${flow.alarms.length} ${t('alarmCount')}`;
+    const groups = flow.alarmHeatmap?.groups || [];
+    const activeGroup = groups.find((group) => group.id === state.activeHeatmapGroupId) || groups[0];
+    const slots = flow.alarmHeatmap?.slots || [];
+    const dateLabel = flow.alarmHeatmap?.dateLabel || String(flow.lastActive || '').split(' ')[0];
 
-    if (!hasItems(flow.alarms)) {
+    if (!activeGroup || !hasItems(activeGroup.rows)) {
       refs.alarmList.innerHTML = `<div class="empty-state">${t('noData')}</div>`;
       return;
     }
 
     refs.alarmList.innerHTML = `
-      <div class="alarm-list">
-        ${flow.alarms
+      <div class="heatmap-tabs">
+        ${groups
           .map(
-            (alarm) => `
-              <div class="alarm-item">
-                <div class="alarm-item-header">
-                  <strong>${alarm.object}</strong>
-                  <span class="alarm-tag ${alarm.level}">${statusLabel(alarm.level)}</span>
-                </div>
-                <div class="alarm-desc">${t('time')}：${alarm.time}</div>
-                <div class="alarm-desc">${t('summary')}：${alarm.summary}</div>
-                <div class="alarm-desc">${t('action')}：${alarm.action}</div>
-              </div>
+            (group) => `
+              <button class="heatmap-tab ${group.id === activeGroup.id ? 'active' : ''}" type="button" data-heatmap-group="${group.id}">
+                ${group.label}
+                <span class="heatmap-tab-count">${group.rows.length}</span>
+              </button>
             `
           )
           .join('')}
       </div>
-    `;
-  }
-
-  function renderDiagnosis(flow) {
-    refs.diagnosisMeta.textContent = `${t('diagnosisMetaPrefix')}${flow.srcIp}:${flow.srcPort} → ${flow.dstIp}:${flow.dstPort}`;
-
-    if (!hasItems(flow.diagnosis)) {
-      refs.diagnosisList.innerHTML = `<div class="empty-state">${t('noData')}</div>`;
-      return;
-    }
-
-    refs.diagnosisList.innerHTML = `
-      <div class="diag-list">
-        ${flow.diagnosis
-          .map(
-            (item) => `
-              <div class="diag-item">
-                <div class="diag-item-header">
-                  <strong>${item.item}</strong>
-                  <span class="diag-tag ${item.result}">${diagnosisLabel(item.result)}</span>
-                </div>
-                <div class="diag-desc">${t('owner')}：${item.owner}</div>
-                <div class="diag-desc">${item.desc}</div>
-                <div class="progress-track">
-                  <div class="progress-fill" style="width: ${item.progress}%"></div>
-                </div>
-              </div>
-            `
-          )
-          .join('')}
+      <div class="heatmap-board">
+        <div class="heatmap-board-header">
+          <div class="heatmap-board-date">
+            <span>${t('heatmapDateLabel')}</span>
+            <strong>${dateLabel}</strong>
+          </div>
+          <div class="heatmap-board-axis">
+            <span>${t('heatmapTimeAxis')}</span>
+          </div>
+        </div>
+        <div class="heatmap-grid-shell">
+          <div class="heatmap-grid-header">
+            <div class="heatmap-row-label heatmap-row-label-header">${activeGroup.label}</div>
+            <div class="heatmap-slot-track">
+              ${slots.map((slot) => `<span class="heatmap-slot-label">${slot}</span>`).join('')}
+            </div>
+          </div>
+          <div class="heatmap-grid-body">
+            ${activeGroup.rows
+              .map(
+                (row) => `
+                  <div class="heatmap-row">
+                    <div class="heatmap-row-label">
+                      <span class="heatmap-row-accent ${row.accent || 'normal'}"></span>
+                      <span>${row.name}</span>
+                    </div>
+                    <div class="heatmap-cell-track">
+                      ${row.cells
+                        .map(
+                          (cell) => `
+                            <span class="heatmap-cell ${cell.level}" title="${row.name} / ${cell.slot}：${cell.text}"></span>
+                          `
+                        )
+                        .join('')}
+                    </div>
+                  </div>
+                `
+              )
+              .join('')}
+          </div>
+        </div>
       </div>
     `;
   }
@@ -1178,8 +1191,7 @@
       refs.srcIpFilter.value = '';
       refs.srcPortFilter.value = '';
       refs.dstIpFilter.value = '';
-      state.selectedStatus = 'all';
-      syncStatusTabs();
+      refs.dstPortFilter.value = '';
       setRangeByPreset(DEFAULT_PRESET, false);
       refresh();
     });
@@ -1198,16 +1210,6 @@
         syncRangeButtons();
         validateTimeRange();
       });
-    });
-
-    refs.statusTabs.addEventListener('click', (event) => {
-      const button = event.target.closest('[data-status]');
-      if (!button) {
-        return;
-      }
-      state.selectedStatus = button.dataset.status;
-      syncStatusTabs();
-      refresh(false);
     });
 
     refs.flowTableBody.addEventListener('click', (event) => {
@@ -1240,6 +1242,19 @@
       }
     });
 
+    refs.alarmList.addEventListener('click', (event) => {
+      const trigger = event.target.closest('[data-heatmap-group]');
+      if (!trigger || !state.selectedFlowId) {
+        return;
+      }
+
+      state.activeHeatmapGroupId = trigger.dataset.heatmapGroup;
+      const flow = getFlowById(state.selectedFlowId);
+      if (flow) {
+        renderAlarms(flow);
+      }
+    });
+
     refs.viewInTopologyBtn.addEventListener('click', () => {
       if (!state.selectedFlowId) {
         return;
@@ -1254,14 +1269,11 @@
     });
 
     refs.drawerBackdrop.addEventListener('click', closeDetailDrawer);
-    document.getElementById('drawerDiagnosisBtn').addEventListener('click', () => {
+    refs.drawerDiagnosisBtn.addEventListener('click', () => {
       if (!state.selectedFlowId) {
         return;
       }
       navigateToDiagnosis(state.selectedFlowId);
-    });
-    document.getElementById('closeDiagnosisBtn').addEventListener('click', () => {
-      refs.diagnosisDrawer.classList.remove('open');
     });
 
     refs.detailTabs.addEventListener('click', (event) => {
@@ -1294,11 +1306,6 @@
           closeInfoAnchors();
           return;
         }
-
-        if (refs.diagnosisDrawer.classList.contains('open')) {
-          refs.diagnosisDrawer.classList.remove('open');
-          return;
-        }
         if (refs.detailDrawer.classList.contains('open')) {
           closeDetailDrawer();
         }
@@ -1322,7 +1329,6 @@
     initializeTenantOptions();
     refs.tenantFilter.value = getAllTenantValue();
     applyTimeBounds();
-    syncStatusTabs();
     setRangeByPreset(DEFAULT_PRESET, false);
     bindEvents();
     refresh();

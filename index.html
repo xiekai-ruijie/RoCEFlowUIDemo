@@ -59,44 +59,36 @@
   </header>
 
   <div class="page-shell">
-    <div class="workspace-breadcrumb">分析保障 / RoCE业务分析 / AI任务</div>
-    <header class="topbar">
-      <div>
-        <div class="eyebrow">ONC Analyzer / AIGC Assurance</div>
-        <h1 data-i18n="pageTitle">AIGC3.0_RoCE流路径交互原型</h1>
-        <p class="subtitle" data-i18n="pageSubtitle">面向 AI 任务运维的流路径查询、拓扑还原与一键诊断工作台</p>
-      </div>
-    </header>
-
     <main class="layout">
       <section class="panel filter-panel">
-        <div class="panel-header">
-          <div>
-            <div class="title-with-info info-anchor">
-              <h2 data-i18n="queryTitle">查询过滤区</h2>
-              <button class="info-trigger" type="button" aria-expanded="false">?</button>
-              <span class="info-popover" role="tooltip"><span data-i18n="querySubtitleHint">支持自定义起止时间、租户与关键五元组联合检索</span></span>
+        <div class="filter-toolbar">
+          <div class="time-filter-group">
+            <div class="time-filter-label" data-i18n="timeRangeLabel">时间范围</div>
+            <div class="time-filter-shell">
+              <label class="time-filter-field">
+                <span data-i18n="startTime">开始时间</span>
+                <input id="startTimeFilter" type="datetime-local" />
+              </label>
+              <span class="time-filter-separator">→</span>
+              <label class="time-filter-field">
+                <span data-i18n="endTime">结束时间</span>
+                <input id="endTimeFilter" type="datetime-local" />
+              </label>
             </div>
           </div>
-          <span class="badge badge-light" data-i18n="defaultRange">默认最近 1 小时</span>
+
+          <div class="quick-range-wrap">
+            <span class="quick-range-label" data-i18n="presetRangeLabel">快捷时间</span>
+            <div class="quick-range" id="quickRangeGroup">
+              <button class="chip active" data-range="1h">最近1小时</button>
+              <button class="chip" data-range="4h">最近4小时</button>
+              <button class="chip" data-range="12h">最近12小时</button>
+              <button class="chip" data-range="24h">最近24小时</button>
+            </div>
+          </div>
         </div>
 
-        <div class="quick-range" id="quickRangeGroup">
-          <button class="chip active" data-range="1h">最近1小时</button>
-          <button class="chip" data-range="4h">最近4小时</button>
-          <button class="chip" data-range="12h">最近12小时</button>
-          <button class="chip" data-range="24h">最近24小时</button>
-        </div>
-
-        <div class="filter-grid">
-          <label>
-            <span data-i18n="startTime">开始时间</span>
-            <input id="startTimeFilter" type="datetime-local" />
-          </label>
-          <label>
-            <span data-i18n="endTime">结束时间</span>
-            <input id="endTimeFilter" type="datetime-local" />
-          </label>
+        <div class="filter-grid filter-grid-extended">
           <label>
             <span data-i18n="tenant">租户</span>
             <select id="tenantFilter"></select>
@@ -113,19 +105,16 @@
             <span data-i18n="dstIp">目的IP</span>
             <input id="dstIpFilter" type="text" placeholder="10.240.229.60" />
           </label>
+          <label>
+            <span data-i18n="dstPort">目的端口</span>
+            <input id="dstPortFilter" type="text" placeholder="4791" />
+          </label>
         </div>
 
-        <div class="filter-actions">
+        <div class="filter-actions filter-actions-compact">
           <button class="btn btn-primary" id="searchBtn" data-i18n="search">查询</button>
           <button class="btn btn-secondary" id="resetBtn" data-i18n="reset">重置</button>
-          <div class="filter-note-group">
-            <div class="hint-text inline-hint-row info-anchor">
-              <span data-i18n="roceHintLabel">RoCEv2 检索说明</span>
-              <button class="info-trigger" type="button" aria-expanded="false">?</button>
-              <span class="info-popover" role="tooltip"><span data-i18n="roceHint">RoCEv2 目的端口固定为 UDP 4791，支持按异常流路径快速定位。</span></span>
-            </div>
-            <div class="validation-text" id="timeValidationText" aria-live="polite"></div>
-          </div>
+          <div class="validation-text" id="timeValidationText" aria-live="polite"></div>
         </div>
       </section>
 
@@ -194,12 +183,6 @@
               <span class="alarm-legend-item"><span class="alarm-legend-dot critical"></span><span data-i18n="alarmCriticalLabel">严重</span></span>
               <span class="alarm-legend-item"><span class="alarm-legend-dot error"></span><span data-i18n="alarmErrorLabel">错误</span></span>
               <span class="alarm-legend-item"><span class="alarm-legend-dot warning"></span><span data-i18n="alarmWarningLabel">警告</span></span>
-            </div>
-            <div class="status-tabs" id="statusTabs">
-              <button class="status-tab active" data-status="all" data-i18n="statusAll">全部</button>
-              <button class="status-tab" data-status="normal" data-i18n="statusNormal">正常</button>
-              <button class="status-tab" data-status="warning" data-i18n="statusWarning">告警</button>
-              <button class="status-tab" data-status="critical" data-i18n="statusCritical">严重</button>
             </div>
           </div>
         </div>
@@ -306,24 +289,23 @@
         </section>
 
         <section class="tab-panel" data-tab-panel="alarms">
-          <div class="dark-card">
-            <div class="card-header-row">
-              <h3 data-i18n="alarmListTitle">关联告警记录</h3>
-              <span class="muted" id="alarmCountLabel"></span>
+          <div class="dark-card heatmap-card">
+            <div class="card-header-row heatmap-header-row">
+              <div>
+                <h3 data-i18n="alarmHeatmapTitle">告警热力图</h3>
+                <p class="muted" data-i18n="alarmHeatmapSubtitle">按服务器、交换机及下联接口查看告警热度分布</p>
+              </div>
+              <div class="heatmap-legend" aria-label="热力图等级说明">
+                <span class="heatmap-legend-item"><span class="heatmap-legend-dot normal"></span><span data-i18n="severityNormal">正常</span></span>
+                <span class="heatmap-legend-item"><span class="heatmap-legend-dot warning"></span><span data-i18n="alarmWarningLabel">警告</span></span>
+                <span class="heatmap-legend-item"><span class="heatmap-legend-dot error"></span><span data-i18n="alarmErrorLabel">错误</span></span>
+                <span class="heatmap-legend-item"><span class="heatmap-legend-dot critical"></span><span data-i18n="alarmCriticalLabel">严重</span></span>
+              </div>
             </div>
             <div id="alarmList"></div>
           </div>
         </section>
       </div>
-
-      <aside class="diagnosis-drawer" id="diagnosisDrawer">
-        <div class="card-header-row">
-          <h3 data-i18n="diagnosisTitle">一键诊断结果</h3>
-          <button class="icon-btn icon-btn-dark" id="closeDiagnosisBtn">×</button>
-        </div>
-        <div class="diagnosis-meta" id="diagnosisMeta"></div>
-        <div id="diagnosisList"></div>
-      </aside>
     </div>
   </aside>
 

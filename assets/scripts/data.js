@@ -323,9 +323,9 @@ window.ROCE_MOCK_DATA = {
       id: 'flow-005',
       range: ['24h'],
       srcIp: '192.168.88.12',
-      srcPort: '51001',
+      srcPort: '4791',
       dstIp: '192.168.90.31',
-      dstPort: '4791',
+      dstPort: '51001',
       throughput: 14.8,
       throughputText: '14.8 Gbps',
       latency: 72,
@@ -343,7 +343,7 @@ window.ROCE_MOCK_DATA = {
       hops: 3,
       diagnosisSummary: '整体正常，边缘推理任务链路稳定。',
       summary: {
-        pathType: '边缘推理路径 / 单向流',
+        pathType: '边缘推理路径 / 反向流',
         pathId: 'PATH-7E11-211',
         packetMode: 'RoCEv2 / Flow View',
         tenant: 'Edge-Inference'
@@ -391,3 +391,96 @@ window.ROCE_MOCK_DATA = {
     }
   ]
 };
+
+(() => {
+  const data = window.ROCE_MOCK_DATA;
+  const HEATMAP_SLOTS = ['00:00', '02:00', '04:00', '06:00', '08:00', '10:00', '12:00', '14:00', '16:00', '18:00', '20:00', '22:00'];
+  const STATUS_TO_LEVEL = { normal: 'normal', warning: 'warning', critical: 'critical' };
+
+  function parseInterfaces(subText) {
+    return String(subText || '')
+      .split('→')
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  function createCells(baseLevel, hotSpans = []) {
+    return HEATMAP_SLOTS.map((slot, index) => {
+      const matchedSpan = hotSpans.find((span) => span.index === index);
+      const level = matchedSpan?.level || baseLevel;
+      return {
+        slot,
+        level,
+        text: matchedSpan?.text || (level === 'normal' ? '指标平稳' : '存在异常波动')
+      };
+    });
+  }
+
+  function createHotSpans(flow, offset = 0, fallbackLevel = 'warning') {
+    return (flow.alarms || []).map((alarm, index) => ({
+      index: Math.min(HEATMAP_SLOTS.length - 1, 2 + index * 2 + offset),
+      level: alarm.level === 'normal' ? fallbackLevel : alarm.level,
+      text: `${alarm.object}：${alarm.summary}`
+    }));
+  }
+
+  function buildGroupRows(flow, nodes, type) {
+    if (type === 'servers') {
+      return nodes
+        .filter((node) => node.type === 'server')
+        .map((node, index) => ({
+          name: node.label,
+          accent: STATUS_TO_LEVEL[node.status] || 'normal',
+          cells: createCells(node.status === 'normal' ? 'normal' : 'warning', createHotSpans(flow, index, node.status === 'critical' ? 'critical' : 'warning'))
+        }));
+    }
+
+    if (type === 'switches') {
+      return nodes
+        .filter((node) => node.type !== 'server')
+        .map((node, index) => ({
+          name: node.label,
+          accent: STATUS_TO_LEVEL[node.status] || 'normal',
+          cells: createCells(node.status === 'normal' ? 'normal' : 'warning', createHotSpans(flow, index + 1, node.status === 'critical' ? 'critical' : 'warning'))
+        }));
+    }
+
+    return nodes
+      .filter((node) => node.type !== 'server')
+      .flatMap((node, index) =>
+        parseInterfaces(node.sub).map((interfaceName, interfaceIndex) => ({
+          name: `${node.label} / ${interfaceName}`,
+          accent: interfaceIndex === 0 ? 'warning' : STATUS_TO_LEVEL[node.status] || 'normal',
+          cells: createCells(interfaceIndex === 0 ? 'warning' : 'normal', createHotSpans(flow, index + interfaceIndex + 2, interfaceIndex === 0 ? 'error' : 'warning'))
+        }))
+      );
+  }
+
+  function buildAlarmHeatmap(flow) {
+    const nodes = flow.topology?.nodes || [];
+    const [year = '', month = '', day = ''] = String(flow.lastActive || '').split(' ')[0].split('-');
+    const lastActive = `${year}年${month}月${day}日`;
+    return {
+      dateLabel: lastActive,
+      slots: HEATMAP_SLOTS,
+      groups: [
+        { id: 'servers', label: '服务器', rows: buildGroupRows(flow, nodes, 'servers') },
+        { id: 'switches', label: '交换机', rows: buildGroupRows(flow, nodes, 'switches') },
+        { id: 'interfaces', label: '下联接口', rows: buildGroupRows(flow, nodes, 'interfaces') }
+      ]
+    };
+  }
+
+  data.flows.forEach((flow) => {
+    if (!flow.direction) {
+      flow.direction = flow.srcPort === '4791' ? 'reverse' : 'forward';
+    }
+    if (!flow.servicePort) {
+      flow.servicePort = '4791';
+    }
+    if (!flow.alarmHeatmap) {
+      flow.alarmHeatmap = buildAlarmHeatmap(flow);
+    }
+  });
+})();
+
