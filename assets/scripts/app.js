@@ -4,6 +4,7 @@
   const PRESET_HOURS = { '1h': 1, '4h': 4, '12h': 12, '24h': 24 };
   const DEFAULT_PRESET = PRESET_HOURS[data?.meta?.defaultRange] ? data.meta.defaultRange : '1h';
   const DIAGNOSIS_PAGE_PATH = './fault-diagnosis.html';
+  const FLOW_DETAIL_PAGE_PATH = './flow-detail.html';
   const MAX_RANGE_MS = 7 * 24 * 60 * 60 * 1000;
   const STATUS_PRIORITY = { critical: 0, warning: 1, normal: 2 };
   const CHART_DEFS = [
@@ -147,12 +148,7 @@
   const state = {
     selectedPreset: DEFAULT_PRESET,
     selectedStatus: 'all',
-    filteredFlows: [],
-    selectedFlowId: null,
-    expandedDeviceIds: [],
-    topologyMode: 'default',
-    focusedDeviceId: null,
-    activeHeatmapGroupId: 'servers'
+    filteredFlows: []
   };
 
   const refs = {
@@ -174,24 +170,7 @@
     overallJitterChart: document.getElementById('overallJitterChart'),
     overallLossChart: document.getElementById('overallLossChart'),
     overallPfcChart: document.getElementById('overallPfcChart'),
-    overallEcnChart: document.getElementById('overallEcnChart'),
-    detailDrawer: document.getElementById('detailDrawer'),
-    drawerBackdrop: document.getElementById('drawerBackdrop'),
-    flowSnapshotCard: document.getElementById('flowSnapshotCard'),
-    matchedDeviceList: document.getElementById('matchedDeviceList'),
-    matchedDeviceCount: document.getElementById('matchedDeviceCount'),
-    topologyContainer: document.getElementById('topologyContainer'),
-    viewInTopologyBtn: document.getElementById('viewInTopologyBtn'),
-    topologyViewHint: document.getElementById('topologyViewHint'),
-    throughputChart: document.getElementById('throughputChart'),
-    latencyChart: document.getElementById('latencyChart'),
-    jitterChart: document.getElementById('jitterChart'),
-    lossChart: document.getElementById('lossChart'),
-    pfcChart: document.getElementById('pfcChart'),
-    ecnChart: document.getElementById('ecnChart'),
-    alarmList: document.getElementById('alarmList'),
-    detailTabs: document.getElementById('detailTabs'),
-    drawerDiagnosisBtn: document.getElementById('drawerDiagnosisBtn')
+    overallEcnChart: document.getElementById('overallEcnChart')
   };
 
   function t(key) {
@@ -438,10 +417,6 @@
       })
       .sort(compareFlows);
 
-    if (state.selectedFlowId && !state.filteredFlows.find((item) => item.id === state.selectedFlowId)) {
-      closeDetailDrawer();
-    }
-
     return true;
   }
 
@@ -513,29 +488,12 @@
     window.location.href = url.toString();
   }
 
-  function openDetailDrawer(flowId) {
-    const flow = getFlowById(flowId);
-    if (!flow) {
-      return;
+  function navigateToFlowDetail(flowId) {
+    const url = new URL(FLOW_DETAIL_PAGE_PATH, window.location.href);
+    if (flowId) {
+      url.searchParams.set('flowId', flowId);
     }
-
-    state.selectedFlowId = flowId;
-    refs.detailDrawer.classList.add('open');
-    refs.detailDrawer.setAttribute('aria-hidden', 'false');
-    document.body.style.overflow = 'hidden';
-    renderDetail(flow);
-  }
-
-  function closeDetailDrawer() {
-    refs.detailDrawer.classList.remove('open');
-    refs.detailDrawer.setAttribute('aria-hidden', 'true');
-    document.body.style.overflow = '';
-    state.selectedFlowId = null;
-    state.expandedDeviceIds = [];
-    state.topologyMode = 'default';
-    state.focusedDeviceId = null;
-    state.activeHeatmapGroupId = 'servers';
-    closeInfoAnchors();
+    window.location.href = url.toString();
   }
 
   function activateTab(name) {
@@ -1173,14 +1131,10 @@
     `;
   }
 
-  function refresh(closeDrawerIfEmpty = true) {
+  function refresh() {
     applyFilters();
     renderOverallTrends();
     renderTable();
-
-    if (closeDrawerIfEmpty && !state.filteredFlows.length) {
-      closeDetailDrawer();
-    }
   }
 
   function bindEvents() {
@@ -1216,72 +1170,11 @@
       const detailButton = event.target.closest('[data-open-detail]');
       const diagnosisButton = event.target.closest('[data-run-diagnosis]');
       if (detailButton) {
-        openDetailDrawer(detailButton.dataset.openDetail);
+        navigateToFlowDetail(detailButton.dataset.openDetail);
       }
       if (diagnosisButton) {
         navigateToDiagnosis(diagnosisButton.dataset.runDiagnosis);
       }
-    });
-
-    refs.matchedDeviceList.addEventListener('click', (event) => {
-      const toggle = event.target.closest('[data-device-toggle]');
-      if (!toggle || !state.selectedFlowId) {
-        return;
-      }
-
-      const deviceId = toggle.dataset.deviceToggle;
-      const isExpanded = state.expandedDeviceIds.includes(deviceId);
-      state.expandedDeviceIds = isExpanded ? state.expandedDeviceIds.filter((id) => id !== deviceId) : [...state.expandedDeviceIds, deviceId];
-      state.focusedDeviceId = isExpanded ? null : deviceId;
-      state.topologyMode = isExpanded ? 'default' : 'device';
-
-      const flow = getFlowById(state.selectedFlowId);
-      if (flow) {
-        renderMatchedDevices(flow);
-        renderTopology(flow);
-      }
-    });
-
-    refs.alarmList.addEventListener('click', (event) => {
-      const trigger = event.target.closest('[data-heatmap-group]');
-      if (!trigger || !state.selectedFlowId) {
-        return;
-      }
-
-      state.activeHeatmapGroupId = trigger.dataset.heatmapGroup;
-      const flow = getFlowById(state.selectedFlowId);
-      if (flow) {
-        renderAlarms(flow);
-      }
-    });
-
-    refs.viewInTopologyBtn.addEventListener('click', () => {
-      if (!state.selectedFlowId) {
-        return;
-      }
-      state.topologyMode = 'path';
-      state.focusedDeviceId = null;
-      const flow = getFlowById(state.selectedFlowId);
-      if (flow) {
-        renderMatchedDevices(flow);
-        renderTopology(flow);
-      }
-    });
-
-    refs.drawerBackdrop.addEventListener('click', closeDetailDrawer);
-    refs.drawerDiagnosisBtn.addEventListener('click', () => {
-      if (!state.selectedFlowId) {
-        return;
-      }
-      navigateToDiagnosis(state.selectedFlowId);
-    });
-
-    refs.detailTabs.addEventListener('click', (event) => {
-      const button = event.target.closest('[data-tab]');
-      if (!button) {
-        return;
-      }
-      activateTab(button.dataset.tab);
     });
 
     document.addEventListener('click', (event) => {
@@ -1304,10 +1197,6 @@
       if (event.key === 'Escape') {
         if (document.querySelector('.info-anchor.is-open')) {
           closeInfoAnchors();
-          return;
-        }
-        if (refs.detailDrawer.classList.contains('open')) {
-          closeDetailDrawer();
         }
         return;
       }

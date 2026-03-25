@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>流路径详情</title>
+  <link rel="icon" href="data:," />
+  <link rel="stylesheet" href="./assets/styles/main.css" />
+</head>
+<body class="app-page app-page-flow-detail">
+  <header class="app-nav-shell">
+    <div class="app-brand-mark">
+      <span class="app-brand-icon">☁</span>
+    </div>
+    <nav class="product-nav">
+      <a class="product-nav-item" href="./home.html">首页</a>
+      <span class="product-nav-item is-disabled">设计</span>
+      <span class="product-nav-item is-disabled">部署</span>
+      <div class="product-nav-item product-nav-dropdown is-active" data-menu="analysis">
+        <button class="product-nav-trigger" type="button" aria-expanded="false">分析保障</button>
+        <div class="analysis-mega-menu" role="menu">
+          <div class="analysis-menu-column">
+            <div class="analysis-menu-title">监控</div>
+            <span class="analysis-menu-link is-disabled">物理拓扑</span>
+            <span class="analysis-menu-link is-disabled">虚拟拓扑</span>
+            <span class="analysis-menu-link is-disabled">告警管理</span>
+            <span class="analysis-menu-link is-disabled">网络日志</span>
+          </div>
+          <div class="analysis-menu-column">
+            <div class="analysis-menu-title">健康分析</div>
+            <span class="analysis-menu-link is-disabled">网络健康</span>
+            <span class="analysis-menu-link is-disabled">网络拥塞分析</span>
+            <span class="analysis-menu-link is-disabled">端口流量陡降分析</span>
+            <span class="analysis-menu-link is-disabled">光链路分析</span>
+          </div>
+          <div class="analysis-menu-column">
+            <div class="analysis-menu-title">RoCE业务分析</div>
+            <a class="analysis-menu-link is-current" href="./index.html">AI任务</a>
+            <span class="analysis-menu-link is-disabled">服务器</span>
+            <span class="analysis-menu-link is-disabled">集合通信</span>
+            <span class="analysis-menu-link is-disabled">自适应ECN</span>
+            <span class="analysis-menu-link is-disabled">网络质量可视</span>
+          </div>
+          <div class="analysis-menu-column">
+            <div class="analysis-menu-title">诊断分析</div>
+            <a class="analysis-menu-link" href="./fault-diagnosis.html">故障一键诊断</a>
+            <span class="analysis-menu-link is-disabled">DDC Ping</span>
+            <span class="analysis-menu-link is-disabled">连通性探测</span>
+          </div>
+          <div class="analysis-menu-column">
+            <div class="analysis-menu-title">采集配置</div>
+            <span class="analysis-menu-link is-disabled">遥测订阅</span>
+            <span class="analysis-menu-link is-disabled">高精度监控</span>
+          </div>
+        </div>
+      </div>
+      <span class="product-nav-item is-disabled">系统管理</span>
+    </nav>
+  </header>
+
+  <div class="page-shell flow-detail-page-shell">
+    <div class="workspace-breadcrumb" id="flowDetailBreadcrumb">分析保障 / RoCE业务分析 / AI任务 / 流路径详情</div>
+
+    <main class="flow-detail-layout" id="flowDetailLayout">
+      <section class="panel flow-detail-hero">
+        <div class="panel-header flow-detail-hero-header">
+          <div>
+            <div class="eyebrow">Flow Detail</div>
+            <h1 id="detailTitle">流路径详情</h1>
+            <p class="subtitle" id="detailSubtitle">加载中...</p>
+          </div>
+          <div class="flow-detail-actions">
+            <a class="btn btn-secondary" href="./index.html">返回列表</a>
+            <button class="btn btn-primary" id="detailDiagnosisBtn" type="button">一键故障诊断</button>
+          </div>
+        </div>
+        <div id="flowSnapshotCard"></div>
+      </section>
+
+      <section class="flow-detail-top-grid">
+        <aside class="panel flow-detail-side-panel">
+          <div class="card-header-row card-header-row-tight">
+            <h2>匹配流的设备</h2>
+            <div class="flow-detail-side-actions">
+              <span class="muted" id="matchedDeviceCount"></span>
+              <button class="btn btn-secondary btn-sm" id="clearSelectionBtn" type="button">显示全部</button>
+            </div>
+          </div>
+          <div class="selection-status-chip" id="selectionStatusChip">当前展示：全路径聚合</div>
+          <div id="matchedDeviceList"></div>
+        </aside>
+
+        <section class="panel flow-detail-topology-panel">
+          <div class="card-header-row">
+            <div>
+              <h2>拓扑</h2>
+              <p class="muted" id="topologyViewHint">当前展示主路径概览</p>
+            </div>
+            <div class="topology-toolbar">
+              <button class="btn btn-secondary btn-sm" id="viewInTopologyBtn" type="button">在拓扑中查看主路径</button>
+            </div>
+          </div>
+          <div id="topologyContainer"></div>
+        </section>
+      </section>
+
+      <section class="panel flow-detail-bottom-panel">
+        <div class="flow-detail-bottom-grid">
+          <section class="flow-detail-trend-column">
+            <div class="panel-header">
+              <div>
+                <h2>指标趋势</h2>
+                <p class="muted" id="trendScopeHint">未选择设备/接口时展示当前流全体趋势</p>
+              </div>
+            </div>
+            <div class="detail-grid trend-grid">
+              <div class="dark-card">
+                <h3>吞吐趋势</h3>
+                <div class="chart" id="throughputChart"></div>
+              </div>
+              <div class="dark-card">
+                <h3>时延趋势</h3>
+                <div class="chart" id="latencyChart"></div>
+              </div>
+              <div class="dark-card">
+                <h3>抖动趋势</h3>
+                <div class="chart" id="jitterChart"></div>
+              </div>
+              <div class="dark-card">
+                <h3>丢包趋势</h3>
+                <div class="chart" id="lossChart"></div>
+              </div>
+              <div class="dark-card">
+                <h3>PFC趋势</h3>
+                <div class="chart" id="pfcChart"></div>
+              </div>
+              <div class="dark-card">
+                <h3>ECN趋势</h3>
+                <div class="chart" id="ecnChart"></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="flow-detail-alarm-column">
+            <div class="panel-header flow-detail-heatmap-header">
+              <div>
+                <h2>告警热力图</h2>
+                <p class="muted" id="heatmapScopeHint">热力图按源服务器→设备→设备端口→目的服务器顺序展示</p>
+              </div>
+              <div class="heatmap-legend" aria-label="热力图等级说明">
+                <span class="heatmap-legend-item"><span class="heatmap-legend-dot normal"></span><span>正常</span></span>
+                <span class="heatmap-legend-item"><span class="heatmap-legend-dot warning"></span><span>警告</span></span>
+                <span class="heatmap-legend-item"><span class="heatmap-legend-dot error"></span><span>错误</span></span>
+                <span class="heatmap-legend-item"><span class="heatmap-legend-dot critical"></span><span>严重</span></span>
+              </div>
+            </div>
+            <div id="alarmList"></div>
+          </section>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="./assets/scripts/data.js"></script>
+  <script src="./assets/scripts/nav.js"></script>
+  <script src="./assets/scripts/flow-detail.js"></script>
+</body>
+</html>
+

@@ -14,6 +14,72 @@ window.ROCE_MOCK_DATA = {
     pfc: { unit: 'fps', values: [8, 14, 22, 74, 68, 104, 82], alerts: [3, 4, 5, 6] },
     ecn: { unit: '%', values: [0.6, 0.9, 1.4, 3.8, 3.4, 6.5, 5.1], alerts: [3, 4, 5, 6] }
   },
+  home: {
+    overview: {
+      title: '智能算网首页',
+      subtitle: '聚合展示 RoCE 业务运行、资源占用与异常分布，支持快速进入 AI 任务分析与故障诊断。',
+      tags: ['AIGC 3.0', 'RoCE Path', 'AI Job', 'Fault Diagnosis'],
+      topology: {
+        links: [
+          { from: 'home-core', to: 'home-spine-a', severity: 'normal' },
+          { from: 'home-core', to: 'home-spine-b', severity: 'warning' },
+          { from: 'home-spine-a', to: 'home-leaf-a', severity: 'normal' },
+          { from: 'home-spine-b', to: 'home-leaf-b', severity: 'critical' },
+          { from: 'home-leaf-a', to: 'home-server-a', severity: 'normal' },
+          { from: 'home-leaf-b', to: 'home-server-b', severity: 'warning' }
+        ],
+        nodes: [
+          { id: 'home-core', label: 'RoCE 调度平面', sub: '8 个租户 / 426 条活跃流', type: 'switch', status: 'normal', x: 470, y: 96 },
+          { id: 'home-spine-a', label: 'Spine-A', sub: '平面 A', type: 'switch', status: 'normal', x: 260, y: 224 },
+          { id: 'home-spine-b', label: 'Spine-B', sub: '平面 B', type: 'switch', status: 'warning', x: 680, y: 224 },
+          { id: 'home-leaf-a', label: 'Leaf-Train', sub: '训练集群', type: 'switch', status: 'normal', x: 260, y: 392 },
+          { id: 'home-leaf-b', label: 'Leaf-Lab', sub: '实验集群', type: 'switch', status: 'critical', x: 680, y: 392 },
+          { id: 'home-server-a', label: 'GPU Pod-01', sub: '92 台活跃节点', type: 'server', status: 'normal', x: 260, y: 564 },
+          { id: 'home-server-b', label: 'GPU Pod-02', sub: '3 条异常任务链路', type: 'server', status: 'warning', x: 680, y: 564 }
+        ]
+      }
+    },
+    alarmRatio: {
+      total: 22,
+      items: [
+        { label: '严重', value: 3, color: '#e45460' },
+        { label: '次要', value: 3, color: '#f08a2f' },
+        { label: '警告', value: 2, color: '#e6c65f' }
+      ]
+    },
+    deviceResources: {
+      title: '设备资源',
+      total: 16,
+      items: [
+        { label: 'NCP', value: 1, percent: 86 },
+        { label: 'NCF', value: 0, percent: 74 },
+        { label: 'ServerLeaf', value: 2300, percent: 100 },
+        { label: 'Spine', value: 4, percent: 91 },
+        { label: '核心', value: 2, percent: 83 },
+        { label: 'Mgmt', value: 0, percent: 0 },
+        { label: '其他', value: 0, percent: 0 }
+      ]
+    },
+    aiTaskResources: {
+      title: 'AI任务资源',
+      total: 238,
+      items: [
+        { label: '训练中', value: 82, percent: 88 },
+        { label: '排队中', value: 37, percent: 46 },
+        { label: '检查点同步', value: 24, percent: 58 },
+        { label: '推理服务', value: 61, percent: 72 },
+        { label: '异常任务', value: 9, percent: 24 },
+        { label: '待诊断', value: 11, percent: 31 },
+        { label: '已完成', value: 14, percent: 64 }
+      ]
+    },
+    quickActions: [
+      { label: 'AI任务分析', href: './index.html' },
+      { label: '故障一键诊断', href: './fault-diagnosis.html' },
+      { label: '热点流路径', href: './flow-detail.html?flowId=flow-002' },
+      { label: '异常复盘', href: './flow-detail.html?flowId=flow-004' }
+    ]
+  },
   flows: [
     {
       id: 'flow-001',
@@ -396,12 +462,42 @@ window.ROCE_MOCK_DATA = {
   const data = window.ROCE_MOCK_DATA;
   const HEATMAP_SLOTS = ['00:00', '02:00', '04:00', '06:00', '08:00', '10:00', '12:00', '14:00', '16:00', '18:00', '20:00', '22:00'];
   const STATUS_TO_LEVEL = { normal: 'normal', warning: 'warning', critical: 'critical' };
+  const SUM_AGGREGATE_KEYS = new Set(['throughput', 'loss', 'pfc']);
 
   function parseInterfaces(subText) {
     return String(subText || '')
       .split('→')
       .map((item) => item.trim())
       .filter(Boolean);
+  }
+
+  function getSeverityWeight(status) {
+    if (status === 'critical') {
+      return 1;
+    }
+    if (status === 'warning') {
+      return 0.55;
+    }
+    return 0.12;
+  }
+
+  function roundMetricValue(metricKey, value) {
+    if (metricKey === 'latency' || metricKey === 'loss' || metricKey === 'pfc') {
+      return Math.round(value);
+    }
+    return Number(value.toFixed(1));
+  }
+
+  function cloneTrend(trend) {
+    return {
+      unit: trend.unit,
+      values: [...trend.values],
+      alerts: [...(trend.alerts || [])]
+    };
+  }
+
+  function cloneTrendCollection(collection) {
+    return Object.fromEntries(Object.entries(collection || {}).map(([key, trend]) => [key, cloneTrend(trend)]));
   }
 
   function createCells(baseLevel, hotSpans = []) {
@@ -456,6 +552,152 @@ window.ROCE_MOCK_DATA = {
       );
   }
 
+  function getPathOrderedNodes(flow) {
+    const nodes = flow.topology?.nodes || [];
+    const nodeMap = new Map(nodes.map((node) => [node.id, node]));
+    const links = flow.topology?.links || [];
+    if (!links.length) {
+      return nodes;
+    }
+
+    const orderedIds = [links[0].from, ...links.map((link) => link.to)];
+    return orderedIds.map((id) => nodeMap.get(id)).filter(Boolean);
+  }
+
+  function buildDerivedTrend(metricKey, trend, severityWeight, emphasis, offset) {
+    const values = trend.values.map((value, index) => {
+      let factor = 1;
+      if (metricKey === 'throughput') {
+        factor = Math.max(0.58, 1 - severityWeight * 0.08 + emphasis * 0.02);
+      } else if (metricKey === 'latency') {
+        factor = 1 + severityWeight * 0.32 + emphasis * 0.08;
+      } else if (metricKey === 'jitter') {
+        factor = 1 + severityWeight * 0.28 + emphasis * 0.12;
+      } else if (metricKey === 'loss') {
+        factor = 1 + severityWeight * 0.38 + emphasis * 0.16;
+      } else if (metricKey === 'pfc') {
+        factor = 1 + severityWeight * 0.24 + emphasis * 0.18;
+      } else if (metricKey === 'ecn') {
+        factor = 1 + severityWeight * 0.26 + emphasis * 0.12;
+      }
+
+      const wave = 1 + Math.sin((index + 1 + offset) * 0.72) * 0.04;
+      const scaledValue = SUM_AGGREGATE_KEYS.has(metricKey) ? value * factor * wave : value * factor * wave;
+      return roundMetricValue(metricKey, scaledValue);
+    });
+
+    const alerts = new Set(trend.alerts || []);
+    if (severityWeight > 0.2 || emphasis > 0.16) {
+      alerts.add(Math.min(trend.values.length - 1, 2 + (offset % 3)));
+    }
+    if (severityWeight > 0.7 || emphasis > 0.28) {
+      alerts.add(Math.min(trend.values.length - 1, 4 + (offset % 2)));
+    }
+
+    return {
+      unit: trend.unit,
+      values,
+      alerts: Array.from(alerts).sort((left, right) => left - right)
+    };
+  }
+
+  function buildSelectionMetrics(flow, orderedNodes) {
+    const metrics = { all: cloneTrendCollection(flow.trends) };
+
+    orderedNodes.forEach((node, index) => {
+      const severityWeight = getSeverityWeight(node.status);
+      const nodeEmphasis = (node.type === 'server' ? 0.12 : 0.2) + index * 0.03;
+      metrics[`node:${node.id}`] = Object.fromEntries(
+        Object.entries(flow.trends || {}).map(([metricKey, trend]) => [metricKey, buildDerivedTrend(metricKey, trend, severityWeight, nodeEmphasis, index)])
+      );
+
+      parseInterfaces(node.sub).forEach((interfaceName, interfaceIndex) => {
+        const interfaceRole = interfaceIndex === 0 ? 'ingress' : 'egress';
+        const interfaceEmphasis = nodeEmphasis + (interfaceRole === 'ingress' ? 0.14 : 0.08);
+        metrics[`interface:${node.id}:${interfaceRole}`] = Object.fromEntries(
+          Object.entries(flow.trends || {}).map(([metricKey, trend]) => [metricKey, buildDerivedTrend(metricKey, trend, severityWeight, interfaceEmphasis, index + interfaceIndex + 1)])
+        );
+      });
+    });
+
+    return metrics;
+  }
+
+  function buildOrderedHeatmapRows(flow, orderedNodes) {
+    return orderedNodes.flatMap((node, index) => {
+      const baseLevel = STATUS_TO_LEVEL[node.status] || 'normal';
+      const rowSeed = createHotSpans(flow, index, baseLevel === 'critical' ? 'critical' : baseLevel === 'warning' ? 'warning' : 'warning');
+      const rows = [
+        {
+          id: `node:${node.id}`,
+          entityKey: `node:${node.id}`,
+          label: node.label,
+          meta: node.sub || (node.type === 'server' ? '服务器' : '设备'),
+          kind: node.type === 'server' ? 'server' : 'device',
+          level: 0,
+          accent: baseLevel,
+          cells: createCells(baseLevel === 'normal' ? 'normal' : 'warning', rowSeed)
+        }
+      ];
+
+      if (node.type === 'server') {
+        return rows;
+      }
+
+      const interfaceRows = parseInterfaces(node.sub).map((interfaceName, interfaceIndex) => {
+        const interfaceRole = interfaceIndex === 0 ? 'ingress' : 'egress';
+        const accent = interfaceRole === 'ingress' && baseLevel === 'normal' ? 'warning' : baseLevel;
+        const fallbackLevel = interfaceRole === 'ingress' ? (baseLevel === 'critical' ? 'error' : 'warning') : baseLevel === 'critical' ? 'critical' : 'warning';
+        return {
+          id: `interface:${node.id}:${interfaceRole}`,
+          entityKey: `interface:${node.id}:${interfaceRole}`,
+          parentKey: `node:${node.id}`,
+          label: `${interfaceRole === 'ingress' ? '入方向' : '出方向'} ${interfaceName}`,
+          meta: `${node.label} / ${interfaceName}`,
+          kind: 'interface',
+          level: 1,
+          accent,
+          cells: createCells(interfaceRole === 'ingress' ? 'warning' : baseLevel === 'normal' ? 'normal' : 'warning', createHotSpans(flow, index + interfaceIndex + 1, fallbackLevel))
+        };
+      });
+
+      return rows.concat(interfaceRows);
+    });
+  }
+
+  function buildSelectionHighlightMap(rows) {
+    const highlightMap = {
+      all: rows.map((row) => row.entityKey)
+    };
+
+    rows.forEach((row) => {
+      if (row.kind === 'device') {
+        highlightMap[row.entityKey] = rows.filter((candidate) => candidate.entityKey === row.entityKey || candidate.parentKey === row.entityKey).map((candidate) => candidate.entityKey);
+        return;
+      }
+
+      if (row.kind === 'interface') {
+        highlightMap[row.entityKey] = [row.parentKey, row.entityKey].filter(Boolean);
+        return;
+      }
+
+      highlightMap[row.entityKey] = [row.entityKey];
+    });
+
+    return highlightMap;
+  }
+
+  function buildDetailView(flow) {
+    const orderedNodes = getPathOrderedNodes(flow);
+    const orderedRows = buildOrderedHeatmapRows(flow, orderedNodes);
+    return {
+      orderedRows,
+      selectionMetrics: buildSelectionMetrics(flow, orderedNodes),
+      highlightMap: buildSelectionHighlightMap(orderedRows),
+      entityLabels: Object.fromEntries(orderedRows.map((row) => [row.entityKey, row.meta || row.label]))
+    };
+  }
+
   function buildAlarmHeatmap(flow) {
     const nodes = flow.topology?.nodes || [];
     const [year = '', month = '', day = ''] = String(flow.lastActive || '').split(' ')[0].split('-');
@@ -480,6 +722,9 @@ window.ROCE_MOCK_DATA = {
     }
     if (!flow.alarmHeatmap) {
       flow.alarmHeatmap = buildAlarmHeatmap(flow);
+    }
+    if (!flow.detailView) {
+      flow.detailView = buildDetailView(flow);
     }
   });
 })();

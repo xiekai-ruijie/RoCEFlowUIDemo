@@ -13,7 +13,7 @@
       <span class="app-brand-icon">☁</span>
     </div>
     <nav class="product-nav">
-      <span class="product-nav-item is-disabled">首页</span>
+      <a class="product-nav-item" href="./home.html">首页</a>
       <span class="product-nav-item is-disabled">设计</span>
       <span class="product-nav-item is-disabled">部署</span>
       <div class="product-nav-item product-nav-dropdown is-active" data-menu="analysis">
@@ -212,102 +212,6 @@
     </main>
   </div>
 
-  <aside class="detail-drawer" id="detailDrawer" aria-hidden="true">
-    <div class="drawer-backdrop" id="drawerBackdrop"></div>
-    <div class="drawer-panel">
-      <header class="detail-header">
-        <div class="detail-title-text" data-i18n="detailEyebrow">流量路径详情</div>
-      </header>
-
-      <div class="detail-tabs-row">
-        <nav class="detail-tabs" id="detailTabs">
-          <button class="detail-tab active" data-tab="overview" data-i18n="tabOverview">概览与拓扑</button>
-          <button class="detail-tab" data-tab="trends" data-i18n="tabTrends">详细指标趋势</button>
-          <button class="detail-tab" data-tab="alarms" data-i18n="tabAlarms">告警记录</button>
-        </nav>
-        <button class="btn btn-primary" id="drawerDiagnosisBtn" data-i18n="startDiagnosis">一键故障诊断</button>
-      </div>
-
-      <div class="detail-content">
-        <section class="tab-panel active" data-tab-panel="overview">
-          <div class="overview-shell">
-            <aside class="overview-sidebar dark-card">
-              <div class="overview-section">
-                <h3 data-i18n="detailSectionTitle">详情</h3>
-                <div id="flowSnapshotCard"></div>
-              </div>
-              <div class="overview-divider"></div>
-              <div class="overview-section">
-                <div class="card-header-row card-header-row-tight">
-                  <h3 data-i18n="matchedDevicesTitle">匹配流的设备</h3>
-                  <span class="muted" id="matchedDeviceCount"></span>
-                </div>
-                <div id="matchedDeviceList"></div>
-              </div>
-            </aside>
-
-            <section class="overview-topology-panel dark-card">
-              <div class="card-header-row">
-                <h3 data-i18n="topologyTitle">路径拓扑</h3>
-                <div class="topology-toolbar">
-                  <button class="btn btn-secondary btn-sm" id="viewInTopologyBtn" data-i18n="viewInTopology">在拓扑中查看</button>
-                  <span class="topology-view-hint" id="topologyViewHint" data-i18n="topologyDefaultHint">当前展示主路径概览</span>
-                </div>
-              </div>
-              <div id="topologyContainer"></div>
-            </section>
-          </div>
-        </section>
-
-        <section class="tab-panel" data-tab-panel="trends">
-          <div class="detail-grid trend-grid">
-            <div class="dark-card">
-              <h3 data-i18n="throughputTrend">吞吐趋势</h3>
-              <div class="chart" id="throughputChart"></div>
-            </div>
-            <div class="dark-card">
-              <h3 data-i18n="latencyTrend">时延趋势</h3>
-              <div class="chart" id="latencyChart"></div>
-            </div>
-            <div class="dark-card">
-              <h3 data-i18n="jitterTrend">抖动趋势</h3>
-              <div class="chart" id="jitterChart"></div>
-            </div>
-            <div class="dark-card">
-              <h3 data-i18n="lossTrend">丢包趋势</h3>
-              <div class="chart" id="lossChart"></div>
-            </div>
-            <div class="dark-card">
-              <h3 data-i18n="pfcTrend">PFC趋势</h3>
-              <div class="chart" id="pfcChart"></div>
-            </div>
-            <div class="dark-card">
-              <h3 data-i18n="ecnTrend">ECN趋势</h3>
-              <div class="chart" id="ecnChart"></div>
-            </div>
-          </div>
-        </section>
-
-        <section class="tab-panel" data-tab-panel="alarms">
-          <div class="dark-card heatmap-card">
-            <div class="card-header-row heatmap-header-row">
-              <div>
-                <h3 data-i18n="alarmHeatmapTitle">告警热力图</h3>
-                <p class="muted" data-i18n="alarmHeatmapSubtitle">按服务器、交换机及下联接口查看告警热度分布</p>
-              </div>
-              <div class="heatmap-legend" aria-label="热力图等级说明">
-                <span class="heatmap-legend-item"><span class="heatmap-legend-dot normal"></span><span data-i18n="severityNormal">正常</span></span>
-                <span class="heatmap-legend-item"><span class="heatmap-legend-dot warning"></span><span data-i18n="alarmWarningLabel">警告</span></span>
-                <span class="heatmap-legend-item"><span class="heatmap-legend-dot error"></span><span data-i18n="alarmErrorLabel">错误</span></span>
-                <span class="heatmap-legend-item"><span class="heatmap-legend-dot critical"></span><span data-i18n="alarmCriticalLabel">严重</span></span>
-              </div>
-            </div>
-            <div id="alarmList"></div>
-          </div>
-        </section>
-      </div>
-    </div>
-  </aside>
 
   <script src="./assets/scripts/data.js"></script>
   <script src="./assets/scripts/nav.js"></script>

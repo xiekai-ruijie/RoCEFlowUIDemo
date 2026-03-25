@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>首页</title>
+  <link rel="icon" href="data:," />
+  <link rel="stylesheet" href="./assets/styles/main.css" />
+</head>
+<body class="app-page app-page-home">
+  <header class="app-nav-shell">
+    <div class="app-brand-mark">
+      <span class="app-brand-icon">☁</span>
+    </div>
+    <nav class="product-nav">
+      <a class="product-nav-item is-current" href="./home.html">首页</a>
+      <span class="product-nav-item is-disabled">设计</span>
+      <span class="product-nav-item is-disabled">部署</span>
+      <div class="product-nav-item product-nav-dropdown" data-menu="analysis">
+        <button class="product-nav-trigger" type="button" aria-expanded="false">分析保障</button>
+        <div class="analysis-mega-menu" role="menu">
+          <div class="analysis-menu-column">
+            <div class="analysis-menu-title">监控</div>
+            <span class="analysis-menu-link is-disabled">物理拓扑</span>
+            <span class="analysis-menu-link is-disabled">虚拟拓扑</span>
+            <span class="analysis-menu-link is-disabled">告警管理</span>
+            <span class="analysis-menu-link is-disabled">网络日志</span>
+          </div>
+          <div class="analysis-menu-column">
+            <div class="analysis-menu-title">健康分析</div>
+            <span class="analysis-menu-link is-disabled">网络健康</span>
+            <span class="analysis-menu-link is-disabled">网络拥塞分析</span>
+            <span class="analysis-menu-link is-disabled">端口流量陡降分析</span>
+            <span class="analysis-menu-link is-disabled">光链路分析</span>
+          </div>
+          <div class="analysis-menu-column">
+            <div class="analysis-menu-title">RoCE业务分析</div>
+            <a class="analysis-menu-link" href="./index.html">AI任务</a>
+            <span class="analysis-menu-link is-disabled">服务器</span>
+            <span class="analysis-menu-link is-disabled">集合通信</span>
+            <span class="analysis-menu-link is-disabled">自适应ECN</span>
+            <span class="analysis-menu-link is-disabled">网络质量可视</span>
+          </div>
+          <div class="analysis-menu-column">
+            <div class="analysis-menu-title">诊断分析</div>
+            <a class="analysis-menu-link" href="./fault-diagnosis.html">故障一键诊断</a>
+            <span class="analysis-menu-link is-disabled">DDC Ping</span>
+            <span class="analysis-menu-link is-disabled">连通性探测</span>
+          </div>
+          <div class="analysis-menu-column">
+            <div class="analysis-menu-title">采集配置</div>
+            <span class="analysis-menu-link is-disabled">遥测订阅</span>
+            <span class="analysis-menu-link is-disabled">高精度监控</span>
+          </div>
+        </div>
+      </div>
+      <span class="product-nav-item is-disabled">系统管理</span>
+    </nav>
+  </header>
+
+  <div class="page-shell home-page-shell">
+    <div class="workspace-breadcrumb">首页 / 智能算网总览</div>
+
+    <main class="home-layout">
+      <section class="panel home-overview-panel">
+        <div class="panel-header home-overview-header">
+          <div>
+            <div class="eyebrow">Overview</div>
+            <h1 id="homeOverviewTitle">智能算网首页</h1>
+            <p class="subtitle" id="homeOverviewSubtitle"></p>
+          </div>
+          <div class="home-overview-tags" id="homeOverviewTags"></div>
+        </div>
+        <div class="home-overview-stage" id="homeOverviewStage"></div>
+      </section>
+
+      <aside class="home-side-stack">
+        <section class="panel home-side-panel">
+          <div class="panel-header home-side-panel-header">
+            <div>
+              <h2>警告占比</h2>
+            </div>
+          </div>
+          <div id="homeAlarmRatio"></div>
+        </section>
+
+        <section class="panel home-side-panel">
+          <div class="panel-header home-side-panel-header">
+            <div>
+              <h2>设备资源</h2>
+            </div>
+          </div>
+          <div id="homeDeviceResources"></div>
+        </section>
+
+        <section class="panel home-side-panel">
+          <div class="panel-header home-side-panel-header">
+            <div>
+              <h2>AI任务资源</h2>
+            </div>
+          </div>
+          <div id="homeTaskResources"></div>
+        </section>
+
+        <section class="panel home-side-panel">
+          <div class="panel-header home-side-panel-header">
+            <div>
+              <h2>常用功能</h2>
+            </div>
+          </div>
+          <div id="homeQuickActions"></div>
+        </section>
+      </aside>
+    </main>
+  </div>
+
+  <script src="./assets/scripts/data.js"></script>
+  <script src="./assets/scripts/nav.js"></script>
+  <script src="./assets/scripts/home.js"></script>
+</body>
+</html>
+
