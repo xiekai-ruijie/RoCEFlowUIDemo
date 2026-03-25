@@ -6,6 +6,14 @@ window.ROCE_MOCK_DATA = {
     defaultRange: '1h'
   },
   tenants: ['全部租户', '58-AI-Train', 'CN-AI-Lab', 'Edge-Inference', 'Joint-Debug'],
+  overallTrends: {
+    throughput: { unit: 'Gbps', values: [86, 92, 104, 118, 111, 126, 121], alerts: [5, 6] },
+    latency: { unit: 'μs', values: [26, 31, 42, 118, 96, 164, 132], alerts: [3, 5, 6] },
+    jitter: { unit: 'μs', values: [4.6, 6.2, 8.8, 18.5, 16.4, 28.2, 22.7], alerts: [3, 5, 6] },
+    loss: { unit: 'pkt', values: [1, 3, 8, 42, 36, 71, 48], alerts: [3, 4, 5, 6] },
+    pfc: { unit: 'fps', values: [8, 14, 22, 74, 68, 104, 82], alerts: [3, 4, 5, 6] },
+    ecn: { unit: '%', values: [0.6, 0.9, 1.4, 3.8, 3.4, 6.5, 5.1], alerts: [3, 4, 5, 6] }
+  },
   flows: [
     {
       id: 'flow-001',
@@ -23,6 +31,7 @@ window.ROCE_MOCK_DATA = {
       loss: 0,
       lossText: '0',
       status: 'normal',
+      alarmSummary: { critical: 0, error: 0, warning: 0 },
       tenant: '58-AI-Train',
       commId: 'CC-240316-001',
       taskName: 'GPT-Train / AllReduce-A',
@@ -96,6 +105,7 @@ window.ROCE_MOCK_DATA = {
       loss: 124,
       lossText: '124',
       status: 'warning',
+      alarmSummary: { critical: 1, error: 2, warning: 3 },
       tenant: 'CN-AI-Lab',
       commId: 'CC-240316-014',
       taskName: 'MoE-Train / Gradient Sync',
@@ -173,6 +183,7 @@ window.ROCE_MOCK_DATA = {
       loss: 8,
       lossText: '8',
       status: 'warning',
+      alarmSummary: { critical: 0, error: 1, warning: 2 },
       tenant: '58-AI-Train',
       commId: 'CC-240316-027',
       taskName: 'LLM-Train / Tensor Parallel',
@@ -247,6 +258,7 @@ window.ROCE_MOCK_DATA = {
       loss: 381,
       lossText: '381',
       status: 'critical',
+      alarmSummary: { critical: 3, error: 4, warning: 2 },
       tenant: 'Joint-Debug',
       commId: 'CC-240316-041',
       taskName: 'Fault-Replay / Link Regression',
@@ -323,6 +335,7 @@ window.ROCE_MOCK_DATA = {
       loss: 3,
       lossText: '3',
       status: 'normal',
+      alarmSummary: { critical: 0, error: 0, warning: 1 },
       tenant: 'Edge-Inference',
       commId: 'CC-240316-050',
       taskName: 'Inference / KV Sync',

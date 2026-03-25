@@ -66,25 +66,6 @@
         <h1 data-i18n="pageTitle">AIGC3.0_RoCE流路径交互原型</h1>
         <p class="subtitle" data-i18n="pageSubtitle">面向 AI 任务运维的流路径查询、拓扑还原与一键诊断工作台</p>
       </div>
-      <div class="topbar-actions">
-        <div class="header-badges">
-          <span class="badge badge-blue info-anchor">
-            <span data-i18n="badgeRetentionLabel">历史留存</span>
-            <button class="info-trigger" type="button" aria-expanded="false">?</button>
-            <span class="info-popover" role="tooltip"><span data-i18n="badgeRetentionHint">历史留存 7 天</span></span>
-          </span>
-          <span class="badge badge-violet info-anchor">
-            <span data-i18n="badgeRangeLabel">查询区间</span>
-            <button class="info-trigger" type="button" aria-expanded="false">?</button>
-            <span class="info-popover" role="tooltip"><span data-i18n="badgeRangeHint">单次查询区间 ≤ 7 天</span></span>
-          </span>
-          <span class="badge badge-emerald info-anchor">
-            <span data-i18n="lastUpdatedLabel">Mock 更新时间</span>
-            <button class="info-trigger" type="button" aria-expanded="false">?</button>
-            <span class="info-popover" role="tooltip"><span id="lastUpdatedHintContent">Mock Updated</span></span>
-          </span>
-        </div>
-      </div>
     </header>
 
     <main class="layout">
@@ -148,6 +129,60 @@
         </div>
       </section>
 
+      <section class="panel overall-trend-panel">
+        <div class="panel-header">
+          <div>
+            <h2 data-i18n="overallTrendTitle">整体指标趋势</h2>
+            <p data-i18n="overallTrendSubtitle">汇总展示当前筛选条件下流相关的吞吐、时延、抖动、丢包、PFC、ECN 指标趋势</p>
+          </div>
+          <span class="badge badge-light" data-i18n="overallTrendBadge">按当前筛选条件聚合</span>
+        </div>
+        <div class="overall-trend-grid">
+          <div class="dark-card overall-trend-card">
+            <div class="overall-trend-card-header">
+              <h3 data-i18n="throughputTrend">吞吐趋势</h3>
+              <span class="trend-accent trend-accent-throughput"></span>
+            </div>
+            <div class="chart chart-compact" id="overallThroughputChart"></div>
+          </div>
+          <div class="dark-card overall-trend-card">
+            <div class="overall-trend-card-header">
+              <h3 data-i18n="latencyTrend">时延趋势</h3>
+              <span class="trend-accent trend-accent-latency"></span>
+            </div>
+            <div class="chart chart-compact" id="overallLatencyChart"></div>
+          </div>
+          <div class="dark-card overall-trend-card">
+            <div class="overall-trend-card-header">
+              <h3 data-i18n="jitterTrend">抖动趋势</h3>
+              <span class="trend-accent trend-accent-jitter"></span>
+            </div>
+            <div class="chart chart-compact" id="overallJitterChart"></div>
+          </div>
+          <div class="dark-card overall-trend-card">
+            <div class="overall-trend-card-header">
+              <h3 data-i18n="lossTrend">丢包趋势</h3>
+              <span class="trend-accent trend-accent-loss"></span>
+            </div>
+            <div class="chart chart-compact" id="overallLossChart"></div>
+          </div>
+          <div class="dark-card overall-trend-card">
+            <div class="overall-trend-card-header">
+              <h3 data-i18n="pfcTrend">PFC趋势</h3>
+              <span class="trend-accent trend-accent-pfc"></span>
+            </div>
+            <div class="chart chart-compact" id="overallPfcChart"></div>
+          </div>
+          <div class="dark-card overall-trend-card">
+            <div class="overall-trend-card-header">
+              <h3 data-i18n="ecnTrend">ECN趋势</h3>
+              <span class="trend-accent trend-accent-ecn"></span>
+            </div>
+            <div class="chart chart-compact" id="overallEcnChart"></div>
+          </div>
+        </div>
+      </section>
+
       <section class="panel list-panel">
         <div class="panel-header list-header">
           <div>
@@ -155,6 +190,11 @@
             <p><span id="resultCount">0</span> <span data-i18n="listCountSuffix">条流路径结果</span></p>
           </div>
           <div class="list-actions">
+            <div class="alarm-legend" aria-label="告警等级说明">
+              <span class="alarm-legend-item"><span class="alarm-legend-dot critical"></span><span data-i18n="alarmCriticalLabel">严重</span></span>
+              <span class="alarm-legend-item"><span class="alarm-legend-dot error"></span><span data-i18n="alarmErrorLabel">错误</span></span>
+              <span class="alarm-legend-item"><span class="alarm-legend-dot warning"></span><span data-i18n="alarmWarningLabel">警告</span></span>
+            </div>
             <div class="status-tabs" id="statusTabs">
               <button class="status-tab active" data-status="all" data-i18n="statusAll">全部</button>
               <button class="status-tab" data-status="normal" data-i18n="statusNormal">正常</button>
@@ -176,7 +216,7 @@
                 <th data-i18n="latency">端到端时延</th>
                 <th data-i18n="jitter">时延抖动</th>
                 <th data-i18n="loss">丢包数</th>
-                <th data-i18n="status">状态</th>
+                <th data-i18n="alarmColumn">告警</th>
                 <th data-i18n="tenant">租户</th>
                 <th data-i18n="lastActive">最近活跃</th>
                 <th data-i18n="actions">操作</th>
@@ -226,7 +266,10 @@
             <section class="overview-topology-panel dark-card">
               <div class="card-header-row">
                 <h3 data-i18n="topologyTitle">路径拓扑</h3>
-                <span class="legend-dot critical"></span>
+                <div class="topology-toolbar">
+                  <button class="btn btn-secondary btn-sm" id="viewInTopologyBtn" data-i18n="viewInTopology">在拓扑中查看</button>
+                  <span class="topology-view-hint" id="topologyViewHint" data-i18n="topologyDefaultHint">当前展示主路径概览</span>
+                </div>
               </div>
               <div id="topologyContainer"></div>
             </section>

@@ -6,6 +6,15 @@
   const DIAGNOSIS_PAGE_PATH = './fault-diagnosis.html';
   const MAX_RANGE_MS = 7 * 24 * 60 * 60 * 1000;
   const STATUS_PRIORITY = { critical: 0, warning: 1, normal: 2 };
+  const CHART_DEFS = [
+    { key: 'throughput', color: '#53d3ff', detailRef: 'throughputChart', overallRef: 'overallThroughputChart' },
+    { key: 'latency', color: '#7c9cff', detailRef: 'latencyChart', overallRef: 'overallLatencyChart' },
+    { key: 'jitter', color: '#ffb545', detailRef: 'jitterChart', overallRef: 'overallJitterChart' },
+    { key: 'loss', color: '#ff6b6b', detailRef: 'lossChart', overallRef: 'overallLossChart' },
+    { key: 'pfc', color: '#4f8cff', detailRef: 'pfcChart', overallRef: 'overallPfcChart' },
+    { key: 'ecn', color: '#8b5cf6', detailRef: 'ecnChart', overallRef: 'overallEcnChart' }
+  ];
+  const SUM_AGGREGATE_KEYS = new Set(['throughput', 'loss', 'pfc']);
 
   const TEXT = {
     pageTitle: 'AIGC3.0_RoCE流路径交互原型',
@@ -29,6 +38,9 @@
     reset: '重置',
     roceHintLabel: 'RoCEv2 检索说明',
     roceHint: 'RoCEv2 目的端口固定为 UDP 4791，支持按异常流路径快速定位。',
+    overallTrendTitle: '整体指标趋势',
+    overallTrendSubtitle: '汇总展示当前范围内流相关的吞吐、时延、抖动、丢包、PFC、ECN 指标趋势。',
+    overallTrendBadge: '筛选结果趋势总览',
     listTitle: 'RoCE流路径列表',
     listCountSuffix: '条流路径结果',
     statusAll: '全部',
@@ -40,6 +52,11 @@
     jitter: '时延抖动',
     loss: '丢包数',
     status: '状态',
+    alarmColumn: '告警',
+    alarmCriticalLabel: '严重',
+    alarmErrorLabel: '错误',
+    alarmWarningLabel: '警告',
+    alarmNone: '无',
     lastActive: '最近活跃',
     actions: '操作',
     detailEyebrow: '流量路径详情',
@@ -50,6 +67,10 @@
     topologyTitle: '路径拓扑',
     detailSectionTitle: '详情',
     matchedDevicesTitle: '匹配流的设备',
+    viewInTopology: '在拓扑中查看',
+    topologyDefaultHint: '当前展示主路径概览',
+    topologyPathHint: '当前展示拓扑上下文中的主路径',
+    topologyDeviceHint: '当前展示设备接口相关流量',
     sourceAddress: '源地址',
     destinationAddress: '目标地址',
     sourcePortLabel: '源端口',
@@ -118,7 +139,9 @@
     selectedStatus: 'all',
     filteredFlows: [],
     selectedFlowId: null,
-    expandedDeviceIds: []
+    expandedDeviceIds: [],
+    topologyMode: 'default',
+    focusedDeviceId: null
   };
 
   const refs = {
@@ -135,12 +158,20 @@
     resultCount: document.getElementById('resultCount'),
     quickRangeGroup: document.getElementById('quickRangeGroup'),
     statusTabs: document.getElementById('statusTabs'),
+    overallThroughputChart: document.getElementById('overallThroughputChart'),
+    overallLatencyChart: document.getElementById('overallLatencyChart'),
+    overallJitterChart: document.getElementById('overallJitterChart'),
+    overallLossChart: document.getElementById('overallLossChart'),
+    overallPfcChart: document.getElementById('overallPfcChart'),
+    overallEcnChart: document.getElementById('overallEcnChart'),
     detailDrawer: document.getElementById('detailDrawer'),
     drawerBackdrop: document.getElementById('drawerBackdrop'),
     flowSnapshotCard: document.getElementById('flowSnapshotCard'),
     matchedDeviceList: document.getElementById('matchedDeviceList'),
     matchedDeviceCount: document.getElementById('matchedDeviceCount'),
     topologyContainer: document.getElementById('topologyContainer'),
+    viewInTopologyBtn: document.getElementById('viewInTopologyBtn'),
+    topologyViewHint: document.getElementById('topologyViewHint'),
     throughputChart: document.getElementById('throughputChart'),
     latencyChart: document.getElementById('latencyChart'),
     jitterChart: document.getElementById('jitterChart'),
@@ -152,8 +183,7 @@
     detailTabs: document.getElementById('detailTabs'),
     diagnosisDrawer: document.getElementById('diagnosisDrawer'),
     diagnosisMeta: document.getElementById('diagnosisMeta'),
-    diagnosisList: document.getElementById('diagnosisList'),
-    lastUpdatedHintContent: document.getElementById('lastUpdatedHintContent')
+    diagnosisList: document.getElementById('diagnosisList')
   };
 
   function t(key) {
@@ -195,6 +225,49 @@
     return data.flows.find((item) => item.id === id) || null;
   }
 
+  function getNodeById(flow, id) {
+    return (flow?.topology?.nodes || []).find((node) => node.id === id) || null;
+  }
+
+  function getAlarmSummary(flow) {
+    return flow?.alarmSummary || { critical: 0, error: 0, warning: 0 };
+  }
+
+  function getPathNodeIds(flow) {
+    const links = flow?.topology?.links || [];
+    if (!links.length) {
+      return [];
+    }
+    return [links[0].from, ...links.map((link) => link.to)];
+  }
+
+  function createSiblingLabel(label, delta = 1, fallbackPrefix = 'node') {
+    const normalized = String(label || fallbackPrefix);
+    const match = normalized.match(/^(.*?)(\d+)$/);
+    if (match) {
+      const nextNumber = Math.max(1, Number(match[2]) + delta);
+      return `${match[1]}${nextNumber}`;
+    }
+    return `${normalized}-${Math.abs(delta)}`;
+  }
+
+  function inferRelatedLabel(node, fallback) {
+    if (!node) {
+      return fallback;
+    }
+    if (node.type === 'server') {
+      return 'server';
+    }
+    const lower = String(node.label || fallback).toLowerCase();
+    if (lower.includes('spine')) {
+      return 'spine';
+    }
+    if (lower.includes('leaf')) {
+      return 'leaf';
+    }
+    return fallback;
+  }
+
   function compareFlows(left, right) {
     const priorityGap = (STATUS_PRIORITY[left.status] ?? 99) - (STATUS_PRIORITY[right.status] ?? 99);
     if (priorityGap !== 0) {
@@ -225,7 +298,6 @@
     document.querySelectorAll('[data-i18n]').forEach((element) => {
       element.textContent = t(element.dataset.i18n);
     });
-    refs.lastUpdatedHintContent.textContent = data.meta.lastUpdated;
     refs.srcIpFilter.placeholder = t('srcIpPlaceholder');
     refs.srcPortFilter.placeholder = t('srcPortPlaceholder');
     refs.dstIpFilter.placeholder = t('dstIpPlaceholder');
@@ -388,7 +460,7 @@
             <td>${flow.latencyText}</td>
             <td>${flow.jitterText}</td>
             <td>${flow.lossText}</td>
-            <td><span class="status-pill status-${flow.status}">${statusLabel(flow.status)}</span></td>
+            <td>${renderAlarmSummary(flow)}</td>
             <td>${flow.tenant}</td>
             <td>${flow.lastActive}</td>
             <td>
@@ -401,6 +473,30 @@
         `
       )
       .join('');
+  }
+
+  function renderAlarmSummary(flow) {
+    const summary = getAlarmSummary(flow);
+    const alarmLevels = [
+      { key: 'critical', labelKey: 'alarmCriticalLabel' },
+      { key: 'error', labelKey: 'alarmErrorLabel' },
+      { key: 'warning', labelKey: 'alarmWarningLabel' }
+    ].filter(({ key }) => Number(summary[key]) > 0);
+
+    if (!alarmLevels.length) {
+      return `<span class="alarm-summary-empty">${t('alarmNone')}</span>`;
+    }
+
+    return `
+      <div class="alarm-summary">
+        ${alarmLevels
+          .map(
+            ({ key, labelKey }) =>
+              `<span class="alarm-count-pill alarm-${key}" title="${t(labelKey)}：${summary[key]}">${summary[key]}</span>`
+          )
+          .join('')}
+      </div>
+    `;
   }
 
   function navigateToDiagnosis(flowId) {
@@ -433,6 +529,8 @@
     document.body.style.overflow = '';
     state.selectedFlowId = null;
     state.expandedDeviceIds = [];
+    state.topologyMode = 'default';
+    state.focusedDeviceId = null;
     closeInfoAnchors();
   }
 
@@ -446,6 +544,8 @@
   }
 
   function renderDetail(flow) {
+    state.topologyMode = 'default';
+    state.focusedDeviceId = null;
     state.expandedDeviceIds = getMatchedDevices(flow)
       .slice(0, 1)
       .map((device) => device.id);
@@ -536,9 +636,10 @@
             (node, index) => {
               const detail = getResolvedDeviceDetail(node, flow, index);
               const isExpanded = state.expandedDeviceIds.includes(node.id);
+              const isFocused = state.focusedDeviceId === node.id;
 
               return `
-              <div class="matched-device-card ${isExpanded ? 'expanded' : ''}">
+              <div class="matched-device-card ${isExpanded ? 'expanded' : ''} ${isFocused ? 'is-focused' : ''}">
                 <button class="matched-device-toggle" type="button" data-device-toggle="${node.id}" aria-expanded="${isExpanded}">
                   <span class="matched-device-chevron">⌄</span>
                   <div class="matched-device-heading">
@@ -586,6 +687,40 @@
   }
 
   function renderTopology(flow) {
+    if (state.topologyMode === 'path') {
+      renderPathFocusTopology(flow);
+      updateTopologyHint(flow);
+      return;
+    }
+
+    if (state.topologyMode === 'device' && state.focusedDeviceId) {
+      renderDeviceTrafficTopology(flow, state.focusedDeviceId);
+      updateTopologyHint(flow);
+      return;
+    }
+
+    renderPrimaryTopology(flow);
+    updateTopologyHint(flow);
+  }
+
+  function updateTopologyHint(flow) {
+    if (!refs.topologyViewHint || !refs.viewInTopologyBtn) {
+      return;
+    }
+
+    let hintText = t('topologyDefaultHint');
+    if (state.topologyMode === 'path') {
+      hintText = `${t('topologyPathHint')} · ${flow.srcIp} → ${flow.dstIp}`;
+    } else if (state.topologyMode === 'device' && state.focusedDeviceId) {
+      const node = getNodeById(flow, state.focusedDeviceId);
+      hintText = `${t('topologyDeviceHint')} · ${node?.label || state.focusedDeviceId}`;
+    }
+
+    refs.topologyViewHint.textContent = hintText;
+    refs.viewInTopologyBtn.classList.toggle('is-active', state.topologyMode === 'path');
+  }
+
+  function renderPrimaryTopology(flow) {
     if (!hasItems(flow?.topology?.nodes) || !hasItems(flow?.topology?.links)) {
       refs.topologyContainer.innerHTML = `<div class="empty-state">${t('noData')}</div>`;
       return;
@@ -594,8 +729,18 @@
     const width = 900;
     const height = 620;
     const positions = calculateTopologyLayout(flow.topology.nodes);
+    refs.topologyContainer.innerHTML = renderTopologyGraph({
+      width,
+      height,
+      nodes: flow.topology.nodes,
+      links: flow.topology.links,
+      positions,
+      legendText: t('topologyLegend')
+    });
+  }
 
-    const linkMarkup = flow.topology.links
+  function renderTopologyGraph({ width, height, nodes, links, positions, legendText }) {
+    const linkMarkup = links
       .map((link) => {
         const start = positions[link.from];
         const end = positions[link.to];
@@ -608,41 +753,190 @@
           : `M ${start.x} ${start.y} C ${start.x} ${(start.y + end.y) / 2}, ${end.x} ${(start.y + end.y) / 2}, ${end.x} ${end.y}`;
         const midX = (start.x + end.x) / 2;
         const midY = (start.y + end.y) / 2 - (isVertical ? 12 : 22);
+        const linkClasses = [`link-${link.severity || 'normal'}`];
+        if (link.muted) {
+          linkClasses.push('is-muted');
+        }
+        if (link.highlighted) {
+          linkClasses.push('is-highlighted');
+        }
         return `
-          <path d="${path}" class="link-${link.severity}" stroke-width="2.2" fill="none" />
-          <text x="${midX}" y="${midY}" class="link-label" text-anchor="middle" font-size="11">${link.metrics}</text>
+          <path d="${path}" class="${linkClasses.join(' ')}" stroke-width="${link.highlighted ? 2.8 : link.muted ? 1.6 : 2.2}" fill="none" />
+          ${link.metrics ? `<text x="${midX}" y="${midY}" class="link-label ${link.muted ? 'is-muted' : ''}" text-anchor="middle" font-size="11">${link.metrics}</text>` : ''}
         `;
       })
       .join('');
 
-    const nodeMarkup = flow.topology.nodes
+    const nodeMarkup = nodes
       .map((node) => {
         const point = positions[node.id];
         if (!point) {
           return '';
         }
-        const statusClass = `node-${node.status}`;
+        const statusClass = `node-${node.status || 'normal'}`;
         const baseClass = node.type === 'server' ? 'node-server' : 'node-switch';
-        const badgeText = point.role === 'source' ? t('sourceBadge') : point.role === 'destination' ? t('destinationBadge') : '';
+        const badgeText = node.role === 'source' || point.role === 'source' ? t('sourceBadge') : node.role === 'destination' || point.role === 'destination' ? t('destinationBadge') : '';
         const icon = node.type === 'server' ? '▭' : '◫';
+        const classes = ['topology-node', statusClass];
+        if (node.muted) {
+          classes.push('is-muted');
+        }
+        if (node.highlighted) {
+          classes.push('is-highlighted');
+        }
         return `
-          <g class="topology-node ${statusClass}">
+          <g class="${classes.join(' ')}">
             <circle cx="${point.x}" cy="${point.y}" r="28" class="topology-node-ring"></circle>
             <circle cx="${point.x}" cy="${point.y}" r="24" class="${baseClass} ${statusClass}"></circle>
             <text x="${point.x}" y="${point.y + 6}" class="topology-icon" text-anchor="middle">${icon}</text>
             ${badgeText ? `<text x="${point.x}" y="${point.y + 40}" class="topology-badge" text-anchor="middle">${badgeText}</text>` : ''}
-            <text x="${point.x}" y="${point.y + 64}" fill="#edf2ff" text-anchor="middle" font-size="13" font-weight="700">${point.displayLabel}</text>
+            <text x="${point.x}" y="${point.y + 64}" class="topology-node-label" text-anchor="middle" font-size="13" font-weight="700">${point.displayLabel || node.label}</text>
           </g>
         `;
       })
       .join('');
 
-    refs.topologyContainer.innerHTML = `
+    return `
       <svg viewBox="0 0 ${width} ${height}" class="topology-svg" role="img" aria-label="${t('topologyAria')}">
-        <text x="26" y="30" class="chart-label" font-size="12">${t('topologyLegend')}</text>
+        <text x="26" y="30" class="chart-label" font-size="12">${legendText}</text>
         ${linkMarkup}
         ${nodeMarkup}
       </svg>
+    `;
+  }
+
+  function renderPathFocusTopology(flow) {
+    const topology = createPathFocusTopology(flow);
+    refs.topologyContainer.innerHTML = renderTopologyGraph({
+      width: topology.width,
+      height: topology.height,
+      nodes: topology.nodes,
+      links: topology.links,
+      positions: topology.positions,
+      legendText: t('topologyPathHint')
+    });
+  }
+
+  function createPathFocusTopology(flow) {
+    const scaledPositions = Object.fromEntries(
+      Object.entries(calculateTopologyLayout(flow.topology.nodes)).map(([id, point]) => [
+        id,
+        {
+          ...point,
+          x: point.x * 1.34 - 120,
+          y: point.y * 1.08 - 10
+        }
+      ])
+    );
+    const positions = { ...scaledPositions };
+    const width = 1200;
+    const height = 720;
+    const nodes = flow.topology.nodes.map((node) => ({ ...node, highlighted: true }));
+    const links = flow.topology.links.map((link) => ({ ...link, highlighted: true }));
+    const switches = getMatchedDevices(flow)
+      .map((node) => ({ ...node, point: positions[node.id] }))
+      .filter((node) => node.point)
+      .sort((left, right) => left.point.y - right.point.y || left.point.x - right.point.x);
+    const topSwitch = switches[0];
+
+    if (topSwitch) {
+      const topGhostId = `${topSwitch.id}-ctx-top`;
+      positions[topGhostId] = {
+        x: Math.max(90, topSwitch.point.x - 330),
+        y: topSwitch.point.y,
+        displayLabel: createSiblingLabel(topSwitch.label, -1, 'spine-1')
+      };
+      nodes.push({ id: topGhostId, label: positions[topGhostId].displayLabel, type: 'switch', status: 'muted', muted: true });
+    }
+
+    switches
+      .filter((node) => node.id !== topSwitch?.id)
+      .forEach((node, index) => {
+        const direction = node.point.x < width / 2 ? -1 : 1;
+        const siblingCount = direction > 0 ? 2 : 1;
+
+        Array.from({ length: siblingCount }).forEach((_, siblingIndex) => {
+          const ghostId = `${node.id}-ctx-${siblingIndex}`;
+          const offset = 120 * (siblingIndex + 1) * direction;
+          const ghostLabel = createSiblingLabel(node.label, siblingIndex + 1, 'leaf-1');
+          positions[ghostId] = {
+            x: Math.min(width - 90, Math.max(90, node.point.x + offset)),
+            y: node.point.y,
+            displayLabel: ghostLabel
+          };
+          nodes.push({ id: ghostId, label: ghostLabel, type: 'switch', status: 'muted', muted: true });
+
+          if (topSwitch) {
+            links.push({ from: topSwitch.id, to: ghostId, severity: 'normal', metrics: '', muted: true });
+          }
+
+          const hostId = `${ghostId}-host`;
+          const hostLabel = `server-${18 + index * 6 + siblingIndex * 2}`;
+          positions[hostId] = {
+            x: positions[ghostId].x,
+            y: 620,
+            displayLabel: hostLabel
+          };
+          nodes.push({ id: hostId, label: hostLabel, type: 'server', status: 'muted', muted: true });
+          links.push({ from: ghostId, to: hostId, severity: 'normal', metrics: '', muted: true });
+        });
+      });
+
+    return { width, height, nodes, links, positions };
+  }
+
+  function renderDeviceTrafficTopology(flow, deviceId) {
+    const pathNodeIds = getPathNodeIds(flow);
+    const selectedIndex = pathNodeIds.indexOf(deviceId);
+    const selectedNode = getNodeById(flow, deviceId);
+
+    if (!selectedNode || selectedIndex === -1) {
+      renderPrimaryTopology(flow);
+      return;
+    }
+
+    const previousNode = getNodeById(flow, pathNodeIds[selectedIndex - 1]);
+    const nextNode = getNodeById(flow, pathNodeIds[selectedIndex + 1]);
+    const sourceNode = getNodeById(flow, pathNodeIds[0]);
+    const destinationNode = getNodeById(flow, pathNodeIds[pathNodeIds.length - 1]);
+    const upperActual = [previousNode, nextNode].find((node) => node && node.type !== 'server') || nextNode || previousNode;
+    const lowerActual = [previousNode, nextNode].find((node) => node && node.type === 'server') || previousNode || nextNode;
+    const upperMutedLabel = `other ${inferRelatedLabel(upperActual, 'spine')}`;
+    const lowerMutedLabel = `other ${inferRelatedLabel(lowerActual, 'server')}`;
+    const destinationBranch = destinationNode && ![selectedNode.id, upperActual?.id, lowerActual?.id].includes(destinationNode.id) ? destinationNode : null;
+
+    refs.topologyContainer.innerHTML = `
+      <svg viewBox="0 0 1240 720" class="topology-svg topology-svg-device" role="img" aria-label="${t('topologyAria')}">
+        <path d="M 505 348 C 495 248, 385 188, 318 156" class="traffic-ribbon traffic-ribbon-egress is-muted" />
+        <path d="M 565 348 C 594 248, 704 190, 790 156" class="traffic-ribbon traffic-ribbon-egress" />
+        <path d="M 505 370 C 492 456, 402 510, 316 602" class="traffic-ribbon traffic-ribbon-ingress is-muted" />
+        <path d="M 565 370 C 588 452, 676 516, 806 602" class="traffic-ribbon traffic-ribbon-ingress" />
+        ${destinationBranch ? `<path d="M 804 156 C 948 228, 1046 290, 1088 488" class="traffic-ribbon traffic-ribbon-branch" />` : ''}
+
+        ${renderTrafficNode({ x: 208, y: 118, label: upperMutedLabel, type: upperActual?.type || 'switch', muted: true })}
+        ${renderTrafficNode({ x: 680, y: 118, label: String(upperActual?.label || createSiblingLabel(selectedNode.label, 1)).toLowerCase(), type: upperActual?.type || 'switch', status: upperActual?.status || 'normal' })}
+        ${renderTrafficNode({ x: 470, y: 322, label: String(selectedNode.label).toLowerCase(), type: selectedNode.type, status: selectedNode.status || 'normal', emphasized: true })}
+        ${renderTrafficNode({ x: 200, y: 566, label: lowerMutedLabel, type: lowerActual?.type || 'server', muted: true })}
+        ${renderTrafficNode({ x: 626, y: 560, label: String((lowerActual || sourceNode)?.label || '').toLowerCase(), type: (lowerActual || sourceNode)?.type || 'server', status: (lowerActual || sourceNode)?.status || 'normal', badge: (lowerActual || sourceNode)?.id === sourceNode?.id ? t('sourceBadge') : (lowerActual || sourceNode)?.id === destinationNode?.id ? t('destinationBadge') : '' })}
+        ${destinationBranch ? renderTrafficNode({ x: 1038, y: 536, label: String(destinationBranch.label).toLowerCase(), type: destinationBranch.type, muted: true, badge: destinationBranch.id === destinationNode?.id ? t('destinationBadge') : '' }) : ''}
+      </svg>
+    `;
+  }
+
+  function renderTrafficNode({ x, y, label, type, status = 'normal', muted = false, emphasized = false, badge = '' }) {
+    const width = Math.max(176, String(label || '').length * 12 + 90);
+    const height = 62;
+    const iconRadius = 22;
+    const icon = type === 'server' ? '▭' : '◫';
+    const statusClass = muted ? 'is-muted' : `is-${status}`;
+    return `
+      <g class="traffic-node ${statusClass} ${emphasized ? 'is-emphasized' : ''}">
+        <rect x="${x}" y="${y}" width="${width}" height="${height}" rx="31" class="traffic-node-shell"></rect>
+        <circle cx="${x + 34}" cy="${y + height / 2}" r="${iconRadius}" class="traffic-node-icon-circle"></circle>
+        <text x="${x + 34}" y="${y + height / 2 + 6}" text-anchor="middle" class="traffic-node-icon">${icon}</text>
+        <text x="${x + 70}" y="${y + 38}" class="traffic-node-label">${label}</text>
+        ${badge ? `<text x="${x + width - 40}" y="${y + 38}" text-anchor="middle" class="traffic-node-badge">${badge}</text>` : ''}
+      </g>
     `;
   }
 
@@ -701,6 +995,10 @@
   }
 
   function renderChart(container, trend, strokeColor) {
+    if (!container) {
+      return;
+    }
+
     if (!hasItems(trend?.values)) {
       container.innerHTML = `<div class="empty-state">${t('noData')}</div>`;
       return;
@@ -749,12 +1047,57 @@
   }
 
   function renderCharts(flow) {
-    renderChart(refs.throughputChart, flow.trends.throughput, '#53d3ff');
-    renderChart(refs.latencyChart, flow.trends.latency, '#7c9cff');
-    renderChart(refs.jitterChart, flow.trends.jitter, '#ffb545');
-    renderChart(refs.lossChart, flow.trends.loss, '#ff6b6b');
-    renderChart(refs.pfcChart, flow.trends.pfc, '#4f8cff');
-    renderChart(refs.ecnChart, flow.trends.ecn, '#8b5cf6');
+    CHART_DEFS.forEach(({ key, color, detailRef }) => {
+      renderChart(refs[detailRef], flow.trends[key], color);
+    });
+  }
+
+  function roundTrendValue(metricKey, value) {
+    if (metricKey === 'latency' || metricKey === 'loss' || metricKey === 'pfc') {
+      return Math.round(value);
+    }
+    return Number(value.toFixed(1));
+  }
+
+  function getOverallTrend(metricKey) {
+    if (!state.filteredFlows.length) {
+      return data.overallTrends?.[metricKey] || null;
+    }
+
+    const sourceTrends = state.filteredFlows
+      .map((flow) => flow.trends?.[metricKey])
+      .filter((trend) => hasItems(trend?.values));
+
+    if (!sourceTrends.length) {
+      return data.overallTrends?.[metricKey] || null;
+    }
+
+    const maxLength = Math.max(...sourceTrends.map((trend) => trend.values.length));
+    const alerts = new Set();
+    const values = Array.from({ length: maxLength }, (_, index) => {
+      const points = sourceTrends.map((trend) => trend.values[Math.min(index, trend.values.length - 1)]);
+      sourceTrends.forEach((trend) => {
+        if (Array.isArray(trend.alerts) && trend.alerts.includes(index)) {
+          alerts.add(index);
+        }
+      });
+
+      const total = points.reduce((sum, point) => sum + Number(point || 0), 0);
+      const aggregated = SUM_AGGREGATE_KEYS.has(metricKey) ? total : total / Math.max(points.length, 1);
+      return roundTrendValue(metricKey, aggregated);
+    });
+
+    return {
+      unit: sourceTrends[0].unit,
+      values,
+      alerts: Array.from(alerts)
+    };
+  }
+
+  function renderOverallTrends() {
+    CHART_DEFS.forEach(({ key, color, overallRef }) => {
+      renderChart(refs[overallRef], getOverallTrend(key), color);
+    });
   }
 
   function renderAlarms(flow) {
@@ -819,6 +1162,7 @@
 
   function refresh(closeDrawerIfEmpty = true) {
     applyFilters();
+    renderOverallTrends();
     renderTable();
 
     if (closeDrawerIfEmpty && !state.filteredFlows.length) {
@@ -884,13 +1228,28 @@
       }
 
       const deviceId = toggle.dataset.deviceToggle;
-      state.expandedDeviceIds = state.expandedDeviceIds.includes(deviceId)
-        ? state.expandedDeviceIds.filter((id) => id !== deviceId)
-        : [...state.expandedDeviceIds, deviceId];
+      const isExpanded = state.expandedDeviceIds.includes(deviceId);
+      state.expandedDeviceIds = isExpanded ? state.expandedDeviceIds.filter((id) => id !== deviceId) : [...state.expandedDeviceIds, deviceId];
+      state.focusedDeviceId = isExpanded ? null : deviceId;
+      state.topologyMode = isExpanded ? 'default' : 'device';
 
       const flow = getFlowById(state.selectedFlowId);
       if (flow) {
         renderMatchedDevices(flow);
+        renderTopology(flow);
+      }
+    });
+
+    refs.viewInTopologyBtn.addEventListener('click', () => {
+      if (!state.selectedFlowId) {
+        return;
+      }
+      state.topologyMode = 'path';
+      state.focusedDeviceId = null;
+      const flow = getFlowById(state.selectedFlowId);
+      if (flow) {
+        renderMatchedDevices(flow);
+        renderTopology(flow);
       }
     });
 
