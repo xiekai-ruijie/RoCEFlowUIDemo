@@ -3,9 +3,6 @@
   const home = data?.home;
 
   const refs = {
-    overviewTitle: document.getElementById('homeOverviewTitle'),
-    overviewSubtitle: document.getElementById('homeOverviewSubtitle'),
-    overviewTags: document.getElementById('homeOverviewTags'),
     overviewStage: document.getElementById('homeOverviewStage'),
     alarmRatio: document.getElementById('homeAlarmRatio'),
     deviceResources: document.getElementById('homeDeviceResources'),
@@ -28,9 +25,6 @@
       return;
     }
 
-    refs.overviewTitle.textContent = overview.title;
-    refs.overviewSubtitle.textContent = overview.subtitle;
-    refs.overviewTags.innerHTML = (overview.tags || []).map((tag) => `<span class="badge badge-light">${tag}</span>`).join('');
 
     const nodes = overview.topology?.nodes || [];
     const links = overview.topology?.links || [];

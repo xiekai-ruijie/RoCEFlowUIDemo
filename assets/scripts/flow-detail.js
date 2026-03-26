@@ -12,9 +12,7 @@
 
   const refs = {
     layout: document.getElementById('flowDetailLayout'),
-    breadcrumb: document.getElementById('flowDetailBreadcrumb'),
     detailTitle: document.getElementById('detailTitle'),
-    detailSubtitle: document.getElementById('detailSubtitle'),
     flowSnapshotCard: document.getElementById('flowSnapshotCard'),
     matchedDeviceCount: document.getElementById('matchedDeviceCount'),
     matchedDeviceList: document.getElementById('matchedDeviceList'),
@@ -136,12 +134,6 @@
             <div class="snapshot-port">${flow.dstPort}</div>
             <div class="snapshot-label">目的端口</div>
           </div>
-        </div>
-        <div class="flow-snapshot-metrics">
-          <div class="flow-snapshot-metric"><span>路径ID</span><strong>${flow.summary?.pathId || flow.id}</strong></div>
-          <div class="flow-snapshot-metric"><span>任务</span><strong>${flow.taskName}</strong></div>
-          <div class="flow-snapshot-metric"><span>租户</span><strong>${flow.tenant}</strong></div>
-          <div class="flow-snapshot-metric"><span>诊断摘要</span><strong>${flow.diagnosisSummary}</strong></div>
         </div>
       </div>
     `;
@@ -609,6 +601,7 @@
     const dateLabel = flow.alarmHeatmap?.dateLabel || String(flow.lastActive || '').split(' ')[0];
     const rows = flow.detailView?.orderedRows || [];
     const activeKeys = new Set(flow.detailView?.highlightMap?.[state.selectedEntityKey] || flow.detailView?.highlightMap?.all || rows.map((row) => row.entityKey));
+    const slotStyle = `--heatmap-slot-count:${slots.length}`;
 
     if (!hasItems(rows)) {
       refs.alarmList.innerHTML = '<div class="empty-state">暂无热力图数据</div>';
@@ -616,7 +609,7 @@
     }
 
     refs.alarmList.innerHTML = `
-      <div class="heatmap-board heatmap-board-ordered">
+      <div class="heatmap-board heatmap-board-ordered" style="${slotStyle}">
         <div class="heatmap-board-header">
           <div class="heatmap-board-date">
             <span>观测日期</span>
@@ -629,8 +622,10 @@
         <div class="heatmap-grid-shell">
           <div class="heatmap-grid-header heatmap-grid-header-ordered">
             <div class="heatmap-row-label heatmap-row-label-header">路径角色 / 对象</div>
-            <div class="heatmap-slot-track">
-              ${slots.map((slot) => `<span class="heatmap-slot-label">${slot}</span>`).join('')}
+            <div class="heatmap-slot-track heatmap-slot-track-fixed">
+              ${slots
+                .map((slot, index) => `<span class="heatmap-slot-label ${index % 2 === 1 ? 'is-half-hour' : ''}">${index % 2 === 0 ? slot : ''}</span>`)
+                .join('')}
             </div>
           </div>
           <div class="heatmap-grid-body heatmap-grid-body-ordered">
@@ -646,7 +641,7 @@
                         <span>${row.meta || ''}</span>
                       </div>
                     </div>
-                    <div class="heatmap-cell-track">
+                    <div class="heatmap-cell-track heatmap-cell-track-fixed">
                       ${(row.cells || [])
                         .map((cell) => `<span class="heatmap-cell ${cell.level}" title="${row.label} / ${cell.slot}：${cell.text}"></span>`)
                         .join('')}
@@ -758,8 +753,6 @@
 
     state.flow = flow;
     refs.detailTitle.textContent = `流路径详情 · ${flow.summary?.pathId || flow.id}`;
-    refs.detailSubtitle.textContent = `${flow.srcIp}:${flow.srcPort} → ${flow.dstIp}:${flow.dstPort} · ${flow.taskName} · 最近活跃 ${flow.lastActive}`;
-    refs.breadcrumb.textContent = `分析保障 / RoCE业务分析 / AI任务 / ${flow.summary?.pathId || flow.id}`;
 
     renderFlowSnapshot(flow);
     renderMatchedDevices(flow);

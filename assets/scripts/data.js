@@ -62,15 +62,13 @@ window.ROCE_MOCK_DATA = {
     },
     aiTaskResources: {
       title: 'AI任务资源',
-      total: 238,
+      total: 3822,
       items: [
-        { label: '训练中', value: 82, percent: 88 },
-        { label: '排队中', value: 37, percent: 46 },
-        { label: '检查点同步', value: 24, percent: 58 },
-        { label: '推理服务', value: 61, percent: 72 },
-        { label: '异常任务', value: 9, percent: 24 },
-        { label: '待诊断', value: 11, percent: 31 },
-        { label: '已完成', value: 14, percent: 64 }
+        { label: 'RoCE流数量', value: 426, percent: 72 },
+        { label: '服务器总数', value: 128, percent: 48 },
+        { label: '网卡总数', value: 256, percent: 56 },
+        { label: 'GPU总数', value: 3000, percent: 92 },
+        { label: 'Leaf设备总数', value: 12, percent: 34 }
       ]
     },
     quickActions: [
@@ -460,7 +458,11 @@ window.ROCE_MOCK_DATA = {
 
 (() => {
   const data = window.ROCE_MOCK_DATA;
-  const HEATMAP_SLOTS = ['00:00', '02:00', '04:00', '06:00', '08:00', '10:00', '12:00', '14:00', '16:00', '18:00', '20:00', '22:00'];
+  const HEATMAP_SLOTS = Array.from({ length: 48 }, (_, index) => {
+    const hour = String(Math.floor(index / 2)).padStart(2, '0');
+    const minute = index % 2 === 0 ? '00' : '30';
+    return `${hour}:${minute}`;
+  });
   const STATUS_TO_LEVEL = { normal: 'normal', warning: 'warning', critical: 'critical' };
   const SUM_AGGREGATE_KEYS = new Set(['throughput', 'loss', 'pfc']);
 
@@ -514,7 +516,7 @@ window.ROCE_MOCK_DATA = {
 
   function createHotSpans(flow, offset = 0, fallbackLevel = 'warning') {
     return (flow.alarms || []).map((alarm, index) => ({
-      index: Math.min(HEATMAP_SLOTS.length - 1, 2 + index * 2 + offset),
+      index: Math.min(HEATMAP_SLOTS.length - 1, 4 + index * 8 + offset * 2),
       level: alarm.level === 'normal' ? fallbackLevel : alarm.level,
       text: `${alarm.object}：${alarm.summary}`
     }));
