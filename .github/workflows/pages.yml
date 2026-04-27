@@ -32,6 +32,7 @@ jobs:
           cp home.html dist/
           cp fault-diagnosis.html dist/
           cp flow-detail.html dist/
+          cp ai_dev_tools_encyclopedia_card.html dist/
           cp .nojekyll dist/
           cp -R assets dist/assets
 
