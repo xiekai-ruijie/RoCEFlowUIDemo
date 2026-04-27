@@ -1,0 +1,511 @@
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap');
+  .card-root {
+    font-family: 'Noto Sans SC', var(--font-sans), sans-serif;
+    background: var(--color-background-primary);
+    max-width: 520px;
+    margin: 0 auto;
+    padding: 0 0 32px;
+  }
+  .hero-band {
+    background: #1a1a2e;
+    border-radius: 16px 16px 0 0;
+    padding: 28px 24px 22px;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero-band::before {
+    content: '';
+    position: absolute;
+    top: -40px; right: -40px;
+    width: 180px; height: 180px;
+    border-radius: 50%;
+    background: #2d3a6b;
+    opacity: 0.5;
+  }
+  .hero-band::after {
+    content: '';
+    position: absolute;
+    bottom: -30px; left: 60px;
+    width: 120px; height: 120px;
+    border-radius: 50%;
+    background: #0f4c81;
+    opacity: 0.35;
+  }
+  .hero-tag {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 1.5px;
+    color: #7ec8e3;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    position: relative; z-index: 1;
+  }
+  .hero-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: #ffffff;
+    line-height: 1.25;
+    position: relative; z-index: 1;
+    margin-bottom: 6px;
+  }
+  .hero-sub {
+    font-size: 13px;
+    color: #a8b8d0;
+    position: relative; z-index: 1;
+    line-height: 1.5;
+  }
+  .hero-icons {
+    display: flex;
+    gap: 8px;
+    margin-top: 16px;
+    position: relative; z-index: 1;
+  }
+  .hero-pill {
+    background: rgba(126,200,227,0.15);
+    border: 1px solid rgba(126,200,227,0.3);
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 11px;
+    color: #7ec8e3;
+  }
+  .body-wrap {
+    padding: 0 16px;
+  }
+  .section-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--color-text-secondary);
+    margin: 20px 0 10px;
+  }
+  .tool-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .tool-card {
+    background: var(--color-background-secondary);
+    border: 0.5px solid var(--color-border-tertiary);
+    border-radius: 12px;
+    padding: 12px 14px;
+  }
+  .tool-card.full {
+    grid-column: span 2;
+  }
+  .tool-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+  .tool-dot {
+    width: 28px; height: 28px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .dot-trae { background: #e8f0fe; color: #1a56db; }
+  .dot-lingma { background: #fef3e2; color: #d97706; }
+  .dot-copilot { background: #f0fdf4; color: #15803d; }
+  .dot-claude { background: #f5f0ff; color: #7c3aed; }
+  .dot-open { background: #fff1f2; color: #e11d48; }
+  .tool-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--color-text-primary);
+    line-height: 1.2;
+  }
+  .tool-type {
+    font-size: 10px;
+    color: var(--color-text-secondary);
+  }
+  .tool-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 6px;
+  }
+  .tag {
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 10px;
+    font-weight: 500;
+  }
+  .tag-blue { background: #e8f0fe; color: #1a56db; }
+  .tag-orange { background: #fef3e2; color: #d97706; }
+  .tag-green { background: #f0fdf4; color: #15803d; }
+  .tag-purple { background: #f5f0ff; color: #7c3aed; }
+  .tag-red { background: #fff1f2; color: #e11d48; }
+  .tag-gray { background: var(--color-background-tertiary); color: var(--color-text-secondary); }
+  .score-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 7px;
+  }
+  .score-label { font-size: 10px; color: var(--color-text-secondary); min-width: 44px; }
+  .score-bar-bg {
+    flex: 1;
+    height: 5px;
+    background: var(--color-border-tertiary);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .score-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+  }
+  .score-val { font-size: 10px; font-weight: 700; color: var(--color-text-primary); min-width: 20px; text-align: right; }
+  .divider { height: 0.5px; background: var(--color-border-tertiary); margin: 18px 0; }
+  .model-rank-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border-radius: 10px;
+    background: var(--color-background-secondary);
+    border: 0.5px solid var(--color-border-tertiary);
+    margin-bottom: 6px;
+  }
+  .rank-num {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--color-text-secondary);
+    min-width: 18px;
+  }
+  .rank-num.gold { color: #d97706; }
+  .rank-num.silver { color: #6b7280; }
+  .rank-num.bronze { color: #92400e; }
+  .model-name {
+    flex: 1;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--color-text-primary);
+  }
+  .model-score {
+    font-size: 11px;
+    font-weight: 700;
+    color: #7c3aed;
+    background: #f5f0ff;
+    padding: 2px 8px;
+    border-radius: 8px;
+  }
+  .model-badge {
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 6px;
+    background: #e8f0fe;
+    color: #1a56db;
+  }
+  .model-badge.cn { background: #fef3e2; color: #d97706; }
+  .strategy-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .strategy-card {
+    background: var(--color-background-secondary);
+    border: 0.5px solid var(--color-border-tertiary);
+    border-radius: 10px;
+    padding: 10px 12px;
+  }
+  .strategy-ide {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--color-text-secondary);
+    margin-bottom: 5px;
+  }
+  .strategy-task {
+    font-size: 10px;
+    color: var(--color-text-secondary);
+    margin-bottom: 3px;
+  }
+  .strategy-model {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--color-text-primary);
+  }
+  .tip-box {
+    background: linear-gradient(135deg, #f0fdf4 0%, #f5f0ff 100%);
+    border: 0.5px solid #c4b5fd;
+    border-radius: 12px;
+    padding: 12px 14px;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  .tip-icon {
+    width: 24px; height: 24px;
+    background: #7c3aed;
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    color: white;
+    font-size: 13px;
+  }
+  .tip-text {
+    font-size: 11px;
+    color: #4b5563;
+    line-height: 1.6;
+  }
+  .tip-text strong { color: #374151; }
+  .skill-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  .skill-card {
+    background: var(--color-background-secondary);
+    border: 0.5px solid var(--color-border-tertiary);
+    border-radius: 10px;
+    padding: 10px;
+    text-align: center;
+  }
+  .skill-icon-wrap {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    margin: 0 auto 6px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .skill-icon-wrap svg { width: 16px; height: 16px; }
+  .skill-label {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--color-text-primary);
+    margin-bottom: 2px;
+  }
+  .skill-desc {
+    font-size: 9px;
+    color: var(--color-text-secondary);
+    line-height: 1.4;
+  }
+  .footer-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 16px 0;
+    border-top: 0.5px solid var(--color-border-tertiary);
+    margin-top: 20px;
+  }
+  .footer-label {
+    font-size: 10px;
+    color: var(--color-text-secondary);
+  }
+  .footer-badge {
+    font-size: 10px;
+    padding: 3px 10px;
+    border-radius: 8px;
+    background: #1a1a2e;
+    color: #7ec8e3;
+    font-weight: 500;
+  }
+</style>
+
+<div class="card-root">
+  <div class="hero-band">
+    <div class="hero-tag">AI 辅助开发 · 工具图鉴</div>
+    <div class="hero-title">AI 开发工具 &<br>大模型选型指南</div>
+    <div class="hero-sub">5 款工具横向对比 · 13 款模型评测 · 推荐配置策略</div>
+    <div class="hero-icons">
+      <span class="hero-pill">GUI IDE</span>
+      <span class="hero-pill">CLI 终端</span>
+      <span class="hero-pill">Skill 机制</span>
+      <span class="hero-pill">国产模型</span>
+    </div>
+  </div>
+
+  <div class="body-wrap">
+
+    <div class="section-label">工具档案 · 五种形态</div>
+    <div class="tool-grid">
+
+      <div class="tool-card">
+        <div class="tool-header">
+          <div class="tool-dot dot-trae">T</div>
+          <div><div class="tool-name">TRAE-CN</div><div class="tool-type">GUI IDE</div></div>
+        </div>
+        <div class="tool-tags">
+          <span class="tag tag-blue">Skill 机制</span>
+          <span class="tag tag-blue">Plan 模式</span>
+          <span class="tag tag-blue">国内免费</span>
+        </div>
+        <div class="score-row"><span class="score-label">适用性</span><div class="score-bar-bg"><div class="score-bar-fill" style="width:92%;background:#1a56db;"></div></div><span class="score-val">92</span></div>
+        <div class="score-row"><span class="score-label">国产生态</span><div class="score-bar-bg"><div class="score-bar-fill" style="width:96%;background:#1a56db;"></div></div><span class="score-val">96</span></div>
+      </div>
+
+      <div class="tool-card">
+        <div class="tool-header">
+          <div class="tool-dot dot-lingma">L</div>
+          <div><div class="tool-name">Lingma/IDE</div><div class="tool-type">GUI IDE</div></div>
+        </div>
+        <div class="tool-tags">
+          <span class="tag tag-orange">行级补全</span>
+          <span class="tag tag-orange">私有部署</span>
+        </div>
+        <div class="score-row"><span class="score-label">补全速度</span><div class="score-bar-bg"><div class="score-bar-fill" style="width:90%;background:#d97706;"></div></div><span class="score-val">90</span></div>
+        <div class="score-row"><span class="score-label">企业合规</span><div class="score-bar-bg"><div class="score-bar-fill" style="width:95%;background:#d97706;"></div></div><span class="score-val">95</span></div>
+      </div>
+
+      <div class="tool-card">
+        <div class="tool-header">
+          <div class="tool-dot dot-copilot">G</div>
+          <div><div class="tool-name">GitHub Copilot</div><div class="tool-type">IDEA 插件</div></div>
+        </div>
+        <div class="tool-tags">
+          <span class="tag tag-green">Claude 系列</span>
+          <span class="tag tag-green">OpenAI</span>
+        </div>
+        <div class="score-row"><span class="score-label">模型质量</span><div class="score-bar-bg"><div class="score-bar-fill" style="width:88%;background:#15803d;"></div></div><span class="score-val">88</span></div>
+        <div class="score-row"><span class="score-label">国外模型</span><div class="score-bar-bg"><div class="score-bar-fill" style="width:93%;background:#15803d;"></div></div><span class="score-val">93</span></div>
+      </div>
+
+      <div class="tool-card">
+        <div class="tool-header">
+          <div class="tool-dot dot-claude">C</div>
+          <div><div class="tool-name">ClaudeCode</div><div class="tool-type">CLI 终端</div></div>
+        </div>
+        <div class="tool-tags">
+          <span class="tag tag-purple">200K ctx</span>
+          <span class="tag tag-purple">MCP 扩展</span>
+        </div>
+        <div class="score-row"><span class="score-label">长文档</span><div class="score-bar-bg"><div class="score-bar-fill" style="width:98%;background:#7c3aed;"></div></div><span class="score-val">98</span></div>
+        <div class="score-row"><span class="score-label">复杂逻辑</span><div class="score-bar-bg"><div class="score-bar-fill" style="width:96%;background:#7c3aed;"></div></div><span class="score-val">96</span></div>
+      </div>
+
+      <div class="tool-card full">
+        <div class="tool-header">
+          <div class="tool-dot dot-open">O</div>
+          <div><div class="tool-name">OpenCode</div><div class="tool-type">CLI 终端 · 开源 · 对标 ClaudeCode</div></div>
+        </div>
+        <div class="tool-tags">
+          <span class="tag tag-red">完全开源</span>
+          <span class="tag tag-red">私有模型</span>
+          <span class="tag tag-red">CI/CD 集成</span>
+          <span class="tag tag-gray">数据不出内网</span>
+        </div>
+        <div class="score-row"><span class="score-label">开源可控</span><div class="score-bar-bg"><div class="score-bar-fill" style="width:100%;background:#e11d48;"></div></div><span class="score-val">100</span></div>
+        <div class="score-row"><span class="score-label">私有部署</span><div class="score-bar-bg"><div class="score-bar-fill" style="width:97%;background:#e11d48;"></div></div><span class="score-val">97</span></div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="section-label">核心能力 · Skill 机制解析</div>
+    <div class="skill-row">
+      <div class="skill-card">
+        <div class="skill-icon-wrap" style="background:#e8f0fe;">
+          <svg viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="12" height="12" rx="2" stroke="#1a56db" stroke-width="1.5"/><path d="M5 8h6M5 5.5h4M5 10.5h3" stroke="#1a56db" stroke-width="1.2" stroke-linecap="round"/></svg>
+        </div>
+        <div class="skill-label">设计文档注入</div>
+        <div class="skill-desc">LLD/HLD 作为唯一知识源</div>
+      </div>
+      <div class="skill-card">
+        <div class="skill-icon-wrap" style="background:#f0fdf4;">
+          <svg viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="5" stroke="#15803d" stroke-width="1.5"/><path d="M8 5v3l2 2" stroke="#15803d" stroke-width="1.5" stroke-linecap="round"/></svg>
+        </div>
+        <div class="skill-label">Plan 模式</div>
+        <div class="skill-desc">先规划后执行，降低返工率</div>
+      </div>
+      <div class="skill-card">
+        <div class="skill-icon-wrap" style="background:#f5f0ff;">
+          <svg viewBox="0 0 16 16" fill="none"><path d="M3 13L8 3l5 10" stroke="#7c3aed" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M5.5 9.5h5" stroke="#7c3aed" stroke-width="1.2" stroke-linecap="round"/></svg>
+        </div>
+        <div class="skill-label">MCP 扩展</div>
+        <div class="skill-desc">对接 DB、API、文件系统</div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="section-label">模型榜单 · Top 7 推荐</div>
+
+    <div class="model-rank-row">
+      <span class="rank-num gold">01</span>
+      <span class="model-name">claude-opus-4-7-thinking</span>
+      <span class="model-badge">旗舰 thinking</span>
+      <span class="model-score">1576</span>
+    </div>
+    <div class="model-rank-row">
+      <span class="rank-num gold">02</span>
+      <span class="model-name">claude-opus-4-7</span>
+      <span class="model-badge">Copilot</span>
+      <span class="model-score">1566</span>
+    </div>
+    <div class="model-rank-row">
+      <span class="rank-num silver">04</span>
+      <span class="model-name">claude-opus-4-6</span>
+      <span class="model-badge">生产推荐</span>
+      <span class="model-score">1545</span>
+    </div>
+    <div class="model-rank-row">
+      <span class="rank-num bronze">05</span>
+      <span class="model-name">glm-5.1</span>
+      <span class="model-badge cn">🇨🇳 国产最强</span>
+      <span class="model-score">1534</span>
+    </div>
+    <div class="model-rank-row">
+      <span class="rank-num bronze">06</span>
+      <span class="model-name">kimi-k2.6</span>
+      <span class="model-badge cn">🇨🇳 多模态优</span>
+      <span class="model-score">1529</span>
+    </div>
+    <div class="model-rank-row">
+      <span class="rank-num" style="color:var(--color-text-secondary);">07</span>
+      <span class="model-name">claude-sonnet-4-6</span>
+      <span class="model-badge">性价比首选</span>
+      <span class="model-score">1526</span>
+    </div>
+    <div class="model-rank-row">
+      <span class="rank-num" style="color:var(--color-text-secondary);">10</span>
+      <span class="model-name">qwen3.6-plus</span>
+      <span class="model-badge cn">🇨🇳 Lingma 生态</span>
+      <span class="model-score">1471</span>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="section-label">配置策略 · 场景对应</div>
+    <div class="strategy-grid">
+      <div class="strategy-card">
+        <div class="strategy-ide">TRAE-CN</div>
+        <div class="strategy-task">复杂后端逻辑</div>
+        <div class="strategy-model">glm-5.1 / qwen3.6+</div>
+      </div>
+      <div class="strategy-card">
+        <div class="strategy-ide">TRAE-CN</div>
+        <div class="strategy-task">前端设计稿还原</div>
+        <div class="strategy-model">kimi-k2.6</div>
+      </div>
+      <div class="strategy-card">
+        <div class="strategy-ide">Lingma / IDE</div>
+        <div class="strategy-task">日常补全</div>
+        <div class="strategy-model">qwen3</div>
+      </div>
+      <div class="strategy-card">
+        <div class="strategy-ide">ClaudeCode</div>
+        <div class="strategy-task">大型文档驱动</div>
+        <div class="strategy-model">claude-opus-4-6</div>
+      </div>
+    </div>
+
+    <div style="margin-top:12px;" class="tip-box">
+      <div class="tip-icon">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11z" stroke="white" stroke-width="1.2"/><path d="M7 6v4M7 4.5v.5" stroke="white" stroke-width="1.3" stroke-linecap="round"/></svg>
+      </div>
+      <div class="tip-text">
+        <strong>预算建议</strong> — 充裕选 claude-opus-4-6 / glm-5.1；日常开发用 claude-sonnet-4-6 / kimi-k2.6；成本敏感选 minimax-m2.7 / qwen3。thinking 变体质量更高但耗时更长，复杂任务推荐。
+      </div>
+    </div>
+
+  </div>
+
+  <div class="footer-meta">
+    <div class="footer-label">基于 Code Benchmark 榜单 · 2025 版</div>
+    <div class="footer-badge">AI 开发工具图鉴</div>
+  </div>
+</div>
