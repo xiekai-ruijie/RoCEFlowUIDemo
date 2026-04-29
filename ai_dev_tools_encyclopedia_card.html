@@ -1,174 +1,173 @@
 
 <style>
-  .card { background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: 14px; padding: 14px 16px; }
+  * { box-sizing: border-box; }
+  .wrap { max-width:520px; margin:0 auto; padding:8px 0; font-family: var(--font-sans); background: #F4F6FA; border-radius:16px; }
+  .card { background: #fff; border: 1.5px solid #D8DEF0; border-radius: 14px; padding: 14px 16px; }
+  .card-inner { background: #F8F9FC; border: 1px solid #E2E8F4; border-radius: 10px; padding: 10px 12px; }
   .tag { display: inline-block; font-size: 11px; font-weight: 500; padding: 3px 9px; border-radius: 20px; }
-  .tag-blue { background: #E6F1FB; color: #0C447C; }
-  .tag-teal { background: #E1F5EE; color: #085041; }
-  .tag-amber { background: #FAEEDA; color: #633806; }
-  .tag-coral { background: #FAECE7; color: #712B13; }
-  .tag-purple { background: #EEEDFE; color: #3C3489; }
-  .tag-green { background: #EAF3DE; color: #27500A; }
-  .dot-row { display: flex; gap: 4px; align-items: center; }
-  .dot { width: 9px; height: 9px; border-radius: 50%; }
-  .dot-fill { background: #185FA5; }
-  .dot-half { background: #B5D4F4; }
-  .dot-empty { background: var(--color-background-secondary); border: 0.5px solid var(--color-border-tertiary); }
-  .score-bar { height: 5px; border-radius: 3px; background: var(--color-background-secondary); overflow: hidden; }
-  .score-fill { height: 100%; border-radius: 3px; }
-  .sep { width: 100%; height: 0.5px; background: var(--color-border-tertiary); margin: 10px 0; }
-  .label { font-size: 11px; color: var(--color-text-secondary); }
-  .val { font-size: 13px; font-weight: 500; color: var(--color-text-primary); }
+  .tag-blue { background: #DBEAFE; color: #1E40AF; border: 1px solid #BFDBFE; }
+  .tag-teal { background: #CCFBF1; color: #065F46; border: 1px solid #99F6E4; }
+  .tag-amber { background: #FEF3C7; color: #92400E; border: 1px solid #FDE68A; }
+  .tag-coral { background: #FFE4E6; color: #9F1239; border: 1px solid #FECDD3; }
+  .tag-purple { background: #EDE9FE; color: #4C1D95; border: 1px solid #DDD6FE; }
+  .tag-green { background: #DCFCE7; color: #14532D; border: 1px solid #BBF7D0; }
+  .sep { width: 100%; height: 1px; background: #E8EDF8; margin: 10px 0; }
+  .score-bar { height: 6px; border-radius: 4px; background: #E8EDF8; overflow: hidden; }
+  .rank-circle { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; flex-shrink: 0; }
+  .tool-icon { width: 32px; height: 32px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; flex-shrink:0; }
+  .section-label { font-size: 12px; font-weight: 600; color: #6B7CA8; margin-bottom: 8px; letter-spacing: 0.03em; text-transform: uppercase; }
+  .row-item { display: flex; align-items: center; gap: 10px; background: #fff; border: 1.5px solid #E2E8F4; border-radius: 10px; padding: 10px 12px; }
 </style>
 
-<div style="max-width:520px; margin:0 auto; padding:8px 0; font-family: var(--font-sans);">
+<div class="wrap">
 
   <!-- Header -->
-  <div style="text-align:center; padding: 18px 16px 12px;">
-    <div style="display:flex; justify-content:center; gap:6px; margin-bottom:10px; flex-wrap:wrap;">
+  <div style="text-align:center; padding:20px 16px 14px;">
+    <div style="display:flex; justify-content:center; gap:6px; margin-bottom:12px; flex-wrap:wrap;">
       <span class="tag tag-blue">AI 开发</span>
       <span class="tag tag-teal">工具选型</span>
       <span class="tag tag-purple">模型推荐</span>
       <span class="tag tag-amber">2025 版</span>
     </div>
-    <div style="font-size:22px; font-weight:500; color:var(--color-text-primary); line-height:1.3; margin-bottom:6px;">AI 辅助开发<br>工具 · 模型百科图鉴</div>
-    <div style="font-size:13px; color:var(--color-text-secondary); line-height:1.6;">覆盖 5 款主流 IDE/CLI 工具 · 13 个评测模型<br>助你找到最适合团队的 AI 编程配置</div>
+    <div style="font-size:23px; font-weight:600; color:#1A2040; line-height:1.3; margin-bottom:6px;">AI 辅助开发<br>工具 · 模型百科图鉴</div>
+    <div style="font-size:13px; color:#6B7CA8; line-height:1.7;">覆盖 5 款主流 IDE/CLI 工具 · 13 个评测模型<br>助你找到最适合团队的 AI 编程配置</div>
   </div>
 
-  <!-- Core concept highlight -->
-  <div style="margin:0 12px 10px; background:#EEEDFE; border-radius:12px; padding:12px 14px; display:flex; align-items:center; gap:12px;">
-    <div style="width:36px; height:36px; border-radius:50%; background:#534AB7; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#EEEDFE" stroke-width="2" stroke-linecap="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+  <!-- Core concept -->
+  <div style="margin:0 14px 12px; background:#EEEAFE; border:1.5px solid #C4BAF5; border-radius:13px; padding:13px 15px; display:flex; align-items:center; gap:12px;">
+    <div style="width:38px; height:38px; border-radius:50%; background:#6C5CE7; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#EDE9FE" stroke-width="2.2" stroke-linecap="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
     </div>
     <div>
-      <div style="font-size:12px; font-weight:500; color:#3C3489;">核心选型标准</div>
-      <div style="font-size:13px; color:#534AB7; line-height:1.5; margin-top:2px;">支持 <strong>Skill 机制</strong> — 将设计文档、编码规范注入 AI 上下文，使 AI 精准理解业务需求，而非通用代码生成</div>
+      <div style="font-size:11px; font-weight:600; color:#4C1D95; margin-bottom:3px;">核心选型标准</div>
+      <div style="font-size:12.5px; color:#5B21B6; line-height:1.6;">支持 <strong>Skill 机制</strong> — 将设计文档、编码规范注入 AI 上下文，使 AI 精准理解业务需求，而非通用代码生成</div>
     </div>
   </div>
 
-  <!-- Tool cards grid -->
-  <div style="margin:0 12px 10px;">
-    <div style="font-size:13px; font-weight:500; color:var(--color-text-secondary); margin-bottom:8px; letter-spacing:0.02em;">工具全景档案</div>
-    
+  <!-- Tools -->
+  <div style="margin:0 14px 12px;">
+    <div class="section-label">工具全景档案</div>
+
     <!-- TRAE-CN -->
-    <div class="card" style="margin-bottom:8px;">
-      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
-        <div style="display:flex; align-items:center; gap:8px;">
-          <div style="width:32px; height:32px; border-radius:8px; background:#E1F5EE; display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:500; color:#0F6E56;">T</div>
+    <div class="card" style="margin-bottom:10px;">
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+        <div style="display:flex; align-items:center; gap:9px;">
+          <div class="tool-icon" style="background:#D1FAE5; color:#065F46;">T</div>
           <div>
-            <div style="font-size:14px; font-weight:500; color:var(--color-text-primary);">TRAE-CN</div>
-            <div style="font-size:11px; color:var(--color-text-secondary);">GUI IDE · 国产免费</div>
+            <div style="font-size:14px; font-weight:600; color:#1A2040;">TRAE-CN</div>
+            <div style="font-size:11px; color:#8896B3;">GUI IDE · 国产免费</div>
           </div>
         </div>
-        <div style="display:flex; gap:4px;">
+        <div style="display:flex; gap:5px;">
           <span class="tag tag-teal">新功能开发</span>
           <span class="tag tag-green">免费</span>
         </div>
       </div>
-      <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; margin-bottom:8px;">
-        <div style="text-align:center; background:var(--color-background-secondary); border-radius:8px; padding:6px 4px;">
-          <div style="font-size:18px; font-weight:500; color:#0F6E56;">3</div>
-          <div style="font-size:10px; color:var(--color-text-secondary);">工作模式</div>
+      <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:7px; margin-bottom:10px;">
+        <div style="text-align:center; background:#F0FDF8; border:1px solid #A7F3D0; border-radius:9px; padding:7px 4px;">
+          <div style="font-size:20px; font-weight:600; color:#065F46;">3</div>
+          <div style="font-size:10px; color:#6B7CA8;">工作模式</div>
         </div>
-        <div style="text-align:center; background:var(--color-background-secondary); border-radius:8px; padding:6px 4px;">
-          <div style="font-size:18px; font-weight:500; color:#0F6E56;">4+</div>
-          <div style="font-size:10px; color:var(--color-text-secondary);">国产模型</div>
+        <div style="text-align:center; background:#F0FDF8; border:1px solid #A7F3D0; border-radius:9px; padding:7px 4px;">
+          <div style="font-size:20px; font-weight:600; color:#065F46;">4+</div>
+          <div style="font-size:10px; color:#6B7CA8;">国产模型</div>
         </div>
-        <div style="text-align:center; background:var(--color-background-secondary); border-radius:8px; padding:6px 4px;">
-          <div style="font-size:18px; font-weight:500; color:#0F6E56;">✓</div>
-          <div style="font-size:10px; color:var(--color-text-secondary);">Skill支持</div>
+        <div style="text-align:center; background:#F0FDF8; border:1px solid #A7F3D0; border-radius:9px; padding:7px 4px;">
+          <div style="font-size:20px; font-weight:600; color:#065F46;">✓</div>
+          <div style="font-size:10px; color:#6B7CA8;">Skill 支持</div>
         </div>
       </div>
-      <div style="display:flex; flex-wrap:wrap; gap:4px; margin-bottom:6px;">
-        <span style="font-size:11px; background:#E1F5EE; color:#085041; padding:2px 7px; border-radius:4px;">Agent / Plan / Spec 模式</span>
-        <span style="font-size:11px; background:#E1F5EE; color:#085041; padding:2px 7px; border-radius:4px;">GLM · Qwen · Kimi</span>
-        <span style="font-size:11px; background:#FAEEDA; color:#633806; padding:2px 7px; border-radius:4px;">高峰排队</span>
+      <div style="display:flex; flex-wrap:wrap; gap:5px; margin-bottom:8px;">
+        <span style="font-size:11px; background:#ECFDF5; color:#064E3B; border:1px solid #A7F3D0; padding:2px 8px; border-radius:5px;">Agent / Plan / Spec 模式</span>
+        <span style="font-size:11px; background:#ECFDF5; color:#064E3B; border:1px solid #A7F3D0; padding:2px 8px; border-radius:5px;">GLM · Qwen · Kimi</span>
+        <span style="font-size:11px; background:#FFF7ED; color:#92400E; border:1px solid #FDE68A; padding:2px 8px; border-radius:5px;">高峰排队</span>
       </div>
-      <div style="font-size:12px; color:var(--color-text-secondary);">适合：新功能开发 · 前端设计稿还原 · 中文需求文档</div>
+      <div style="font-size:12px; color:#6B7CA8;">适合：新功能开发 · 前端设计稿还原 · 中文需求文档</div>
     </div>
 
-    <!-- IDEA+Lingma & Copilot side by side -->
-    <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px;">
+    <!-- Lingma & Copilot -->
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px;">
       <div class="card">
-        <div style="display:flex; align-items:center; gap:6px; margin-bottom:8px;">
-          <div style="width:28px; height:28px; border-radius:7px; background:#E6F1FB; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:500; color:#185FA5;">L</div>
+        <div style="display:flex; align-items:center; gap:7px; margin-bottom:9px;">
+          <div class="tool-icon" style="background:#DBEAFE; color:#1E40AF; font-size:12px;">L</div>
           <div>
-            <div style="font-size:13px; font-weight:500; color:var(--color-text-primary);">IDEA + Lingma</div>
-            <div style="font-size:10px; color:var(--color-text-secondary);">通义灵码插件</div>
+            <div style="font-size:13px; font-weight:600; color:#1A2040;">IDEA + Lingma</div>
+            <div style="font-size:10px; color:#8896B3;">通义灵码插件</div>
           </div>
         </div>
         <div class="sep"></div>
-        <div style="font-size:11px; color:var(--color-text-secondary); line-height:1.7;">
+        <div style="font-size:11.5px; color:#4A5568; line-height:1.85;">
           <div>行级实时补全</div>
           <div>企业私有化部署</div>
           <div>新增 Kimi-K2.6</div>
           <div>阿里云生态绑定</div>
         </div>
-        <div style="margin-top:8px; display:flex; flex-wrap:wrap; gap:3px;">
+        <div style="margin-top:9px; display:flex; flex-wrap:wrap; gap:4px;">
           <span class="tag tag-blue">Java</span>
           <span class="tag tag-blue">Python</span>
           <span class="tag tag-teal">私有化</span>
         </div>
       </div>
       <div class="card">
-        <div style="display:flex; align-items:center; gap:6px; margin-bottom:8px;">
-          <div style="width:28px; height:28px; border-radius:7px; background:#FAEEDA; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:500; color:#854F0B;">G</div>
+        <div style="display:flex; align-items:center; gap:7px; margin-bottom:9px;">
+          <div class="tool-icon" style="background:#FEF3C7; color:#92400E; font-size:12px;">G</div>
           <div>
-            <div style="font-size:13px; font-weight:500; color:var(--color-text-primary);">IDEA + Copilot</div>
-            <div style="font-size:10px; color:var(--color-text-secondary);">GitHub插件</div>
+            <div style="font-size:13px; font-weight:600; color:#1A2040;">IDEA + Copilot</div>
+            <div style="font-size:10px; color:#8896B3;">GitHub 插件</div>
           </div>
         </div>
         <div class="sep"></div>
-        <div style="font-size:11px; color:var(--color-text-secondary); line-height:1.7;">
+        <div style="font-size:11.5px; color:#4A5568; line-height:1.85;">
           <div>行级实时补全</div>
           <div>国外最新模型</div>
           <div>Claude / OpenAI</div>
           <div>订阅制</div>
         </div>
-        <div style="margin-top:8px; display:flex; flex-wrap:wrap; gap:3px;">
+        <div style="margin-top:9px; display:flex; flex-wrap:wrap; gap:4px;">
           <span class="tag tag-amber">Claude</span>
           <span class="tag tag-amber">GPT</span>
         </div>
       </div>
     </div>
 
-    <!-- ClaudeCode & OpenCode side by side -->
+    <!-- ClaudeCode & OpenCode -->
     <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
       <div class="card">
-        <div style="display:flex; align-items:center; gap:6px; margin-bottom:8px;">
-          <div style="width:28px; height:28px; border-radius:7px; background:#FAECE7; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:500; color:#993C1D;">C</div>
+        <div style="display:flex; align-items:center; gap:7px; margin-bottom:9px;">
+          <div class="tool-icon" style="background:#FFE4E6; color:#9F1239; font-size:12px;">C</div>
           <div>
-            <div style="font-size:13px; font-weight:500; color:var(--color-text-primary);">ClaudeCode</div>
-            <div style="font-size:10px; color:var(--color-text-secondary);">CLI · 200K+ token</div>
+            <div style="font-size:13px; font-weight:600; color:#1A2040;">ClaudeCode</div>
+            <div style="font-size:10px; color:#8896B3;">CLI · 200K+ token</div>
           </div>
         </div>
         <div class="sep"></div>
-        <div style="font-size:11px; color:var(--color-text-secondary); line-height:1.7;">
+        <div style="font-size:11.5px; color:#4A5568; line-height:1.85;">
           <div>长上下文处理</div>
           <div>MCP 工具扩展</div>
           <div>CI/CD 集成</div>
           <div>大型 LLD 文档</div>
         </div>
-        <div style="margin-top:8px; display:flex; flex-wrap:wrap; gap:3px;">
-          <span class="tag tag-coral">境外API</span>
+        <div style="margin-top:9px; display:flex; flex-wrap:wrap; gap:4px;">
+          <span class="tag tag-coral">境外 API</span>
           <span class="tag tag-coral">复杂逻辑</span>
         </div>
       </div>
       <div class="card">
-        <div style="display:flex; align-items:center; gap:6px; margin-bottom:8px;">
-          <div style="width:28px; height:28px; border-radius:7px; background:#EEEDFE; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:500; color:#534AB7;">O</div>
+        <div style="display:flex; align-items:center; gap:7px; margin-bottom:9px;">
+          <div class="tool-icon" style="background:#EDE9FE; color:#4C1D95; font-size:12px;">O</div>
           <div>
-            <div style="font-size:13px; font-weight:500; color:var(--color-text-primary);">OpenCode</div>
-            <div style="font-size:10px; color:var(--color-text-secondary);">CLI · 开源可控</div>
+            <div style="font-size:13px; font-weight:600; color:#1A2040;">OpenCode</div>
+            <div style="font-size:10px; color:#8896B3;">CLI · 开源可控</div>
           </div>
         </div>
         <div class="sep"></div>
-        <div style="font-size:11px; color:var(--color-text-secondary); line-height:1.7;">
+        <div style="font-size:11.5px; color:#4A5568; line-height:1.85;">
           <div>私有模型对接</div>
           <div>数据不出内网</div>
           <div>多 LLM 后端</div>
           <div>开源可审计</div>
         </div>
-        <div style="margin-top:8px; display:flex; flex-wrap:wrap; gap:3px;">
+        <div style="margin-top:9px; display:flex; flex-wrap:wrap; gap:4px;">
           <span class="tag tag-purple">内网</span>
           <span class="tag tag-purple">开源</span>
         </div>
@@ -176,196 +175,184 @@
     </div>
   </div>
 
-  <!-- Top 5 model ranking -->
-  <div style="margin:0 12px 10px;">
-    <div style="font-size:13px; font-weight:500; color:var(--color-text-secondary); margin-bottom:8px;">Code Benchmark · 模型评分榜 Top 13</div>
+  <!-- Model ranking -->
+  <div style="margin:0 14px 12px;">
+    <div class="section-label">Code Benchmark · 模型评分榜 Top 13</div>
     <div class="card" style="padding:10px 14px;">
 
-      <!-- rank 1 -->
-      <div style="display:flex; align-items:center; gap:8px; padding:6px 0; border-bottom:0.5px solid var(--color-border-tertiary);">
-        <div style="width:20px; height:20px; border-radius:50%; background:#185FA5; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:500; color:#E6F1FB; flex-shrink:0;">1</div>
+      <div style="display:flex; align-items:center; gap:9px; padding:7px 0; border-bottom:1px solid #EEF1FB;">
+        <div class="rank-circle" style="background:#1E3A8A; color:#E0EAFF;">1</div>
         <div style="flex:1; min-width:0;">
-          <div style="font-size:12px; font-weight:500; color:var(--color-text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">claude-opus-4-7-thinking</div>
-          <div style="display:flex; align-items:center; gap:6px; margin-top:3px;">
-            <div class="score-bar" style="flex:1;"><div class="score-fill" style="width:100%; background:#185FA5;"></div></div>
-            <span style="font-size:11px; color:#185FA5; font-weight:500;">1576</span>
+          <div style="font-size:12px; font-weight:600; color:#1A2040;">claude-opus-4-7-thinking</div>
+          <div style="display:flex; align-items:center; gap:7px; margin-top:4px;">
+            <div class="score-bar" style="flex:1;"><div style="height:100%; width:100%; border-radius:4px; background:#1D4ED8;"></div></div>
+            <span style="font-size:11px; color:#1D4ED8; font-weight:600; min-width:30px;">1576</span>
           </div>
         </div>
-        <span class="tag tag-blue" style="flex-shrink:0;">旗舰</span>
+        <span class="tag tag-blue">旗舰</span>
       </div>
 
-      <!-- rank 2 -->
-      <div style="display:flex; align-items:center; gap:8px; padding:6px 0; border-bottom:0.5px solid var(--color-border-tertiary);">
-        <div style="width:20px; height:20px; border-radius:50%; background:#378ADD; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:500; color:white; flex-shrink:0;">2</div>
+      <div style="display:flex; align-items:center; gap:9px; padding:7px 0; border-bottom:1px solid #EEF1FB;">
+        <div class="rank-circle" style="background:#2563EB; color:#fff;">2</div>
         <div style="flex:1; min-width:0;">
-          <div style="font-size:12px; font-weight:500; color:var(--color-text-primary);">claude-opus-4-7</div>
-          <div style="display:flex; align-items:center; gap:6px; margin-top:3px;">
-            <div class="score-bar" style="flex:1;"><div class="score-fill" style="width:99%; background:#378ADD;"></div></div>
-            <span style="font-size:11px; color:#378ADD; font-weight:500;">1566</span>
+          <div style="font-size:12px; font-weight:600; color:#1A2040;">claude-opus-4-7</div>
+          <div style="display:flex; align-items:center; gap:7px; margin-top:4px;">
+            <div class="score-bar" style="flex:1;"><div style="height:100%; width:99%; border-radius:4px; background:#3B82F6;"></div></div>
+            <span style="font-size:11px; color:#2563EB; font-weight:600; min-width:30px;">1566</span>
           </div>
         </div>
-        <span class="tag" style="background:#E6F1FB; color:#0C447C; flex-shrink:0;">Copilot</span>
+        <span class="tag tag-blue">Copilot</span>
       </div>
 
-      <!-- rank 4 -->
-      <div style="display:flex; align-items:center; gap:8px; padding:6px 0; border-bottom:0.5px solid var(--color-border-tertiary);">
-        <div style="width:20px; height:20px; border-radius:50%; background:#85B7EB; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:500; color:#042C53; flex-shrink:0;">4</div>
+      <div style="display:flex; align-items:center; gap:9px; padding:7px 0; border-bottom:1px solid #EEF1FB;">
+        <div class="rank-circle" style="background:#60A5FA; color:#1E3A8A;">4</div>
         <div style="flex:1; min-width:0;">
-          <div style="font-size:12px; font-weight:500; color:var(--color-text-primary);">claude-opus-4-6 <span style="font-size:10px; color:var(--color-text-secondary);">生产推荐</span></div>
-          <div style="display:flex; align-items:center; gap:6px; margin-top:3px;">
-            <div class="score-bar" style="flex:1;"><div class="score-fill" style="width:98%; background:#85B7EB;"></div></div>
-            <span style="font-size:11px; color:#185FA5; font-weight:500;">1545</span>
+          <div style="font-size:12px; font-weight:600; color:#1A2040;">claude-opus-4-6 <span style="font-size:10px; color:#6B7CA8; font-weight:400;">生产推荐</span></div>
+          <div style="display:flex; align-items:center; gap:7px; margin-top:4px;">
+            <div class="score-bar" style="flex:1;"><div style="height:100%; width:98%; border-radius:4px; background:#60A5FA;"></div></div>
+            <span style="font-size:11px; color:#2563EB; font-weight:600; min-width:30px;">1545</span>
           </div>
         </div>
-        <span class="tag" style="background:#E6F1FB; color:#0C447C; flex-shrink:0;">Copilot</span>
+        <span class="tag tag-blue">Copilot</span>
       </div>
 
-      <!-- rank 5 glm -->
-      <div style="display:flex; align-items:center; gap:8px; padding:6px 0; border-bottom:0.5px solid var(--color-border-tertiary);">
-        <div style="width:20px; height:20px; border-radius:50%; background:#1D9E75; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:500; color:white; flex-shrink:0;">5</div>
+      <div style="display:flex; align-items:center; gap:9px; padding:7px 0; border-bottom:1px solid #EEF1FB;">
+        <div class="rank-circle" style="background:#065F46; color:#D1FAE5;">5</div>
         <div style="flex:1; min-width:0;">
-          <div style="font-size:12px; font-weight:500; color:var(--color-text-primary);">glm-5.1 <span style="font-size:10px; color:#0F6E56;">国产最强</span></div>
-          <div style="display:flex; align-items:center; gap:6px; margin-top:3px;">
-            <div class="score-bar" style="flex:1;"><div class="score-fill" style="width:97%; background:#1D9E75;"></div></div>
-            <span style="font-size:11px; color:#0F6E56; font-weight:500;">1534</span>
+          <div style="font-size:12px; font-weight:600; color:#1A2040;">glm-5.1 <span style="font-size:10px; color:#065F46; font-weight:400;">国产最强</span></div>
+          <div style="display:flex; align-items:center; gap:7px; margin-top:4px;">
+            <div class="score-bar" style="flex:1;"><div style="height:100%; width:97%; border-radius:4px; background:#10B981;"></div></div>
+            <span style="font-size:11px; color:#065F46; font-weight:600; min-width:30px;">1534</span>
           </div>
         </div>
-        <span class="tag tag-teal" style="flex-shrink:0;">TRAE-CN</span>
+        <span class="tag tag-teal">TRAE-CN</span>
       </div>
 
-      <!-- rank 6 kimi -->
-      <div style="display:flex; align-items:center; gap:8px; padding:6px 0; border-bottom:0.5px solid var(--color-border-tertiary);">
-        <div style="width:20px; height:20px; border-radius:50%; background:#5DCAA5; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:500; color:#04342C; flex-shrink:0;">6</div>
+      <div style="display:flex; align-items:center; gap:9px; padding:7px 0; border-bottom:1px solid #EEF1FB;">
+        <div class="rank-circle" style="background:#34D399; color:#064E3B;">6</div>
         <div style="flex:1; min-width:0;">
-          <div style="font-size:12px; font-weight:500; color:var(--color-text-primary);">kimi-k2.6 <span style="font-size:10px; color:var(--color-text-secondary);">大文档+图片</span></div>
-          <div style="display:flex; align-items:center; gap:6px; margin-top:3px;">
-            <div class="score-bar" style="flex:1;"><div class="score-fill" style="width:97%; background:#5DCAA5;"></div></div>
-            <span style="font-size:11px; color:#0F6E56; font-weight:500;">1529</span>
+          <div style="font-size:12px; font-weight:600; color:#1A2040;">kimi-k2.6 <span style="font-size:10px; color:#6B7CA8; font-weight:400;">大文档+图片</span></div>
+          <div style="display:flex; align-items:center; gap:7px; margin-top:4px;">
+            <div class="score-bar" style="flex:1;"><div style="height:100%; width:97%; border-radius:4px; background:#34D399;"></div></div>
+            <span style="font-size:11px; color:#065F46; font-weight:600; min-width:30px;">1529</span>
           </div>
         </div>
-        <span class="tag tag-teal" style="flex-shrink:0;">TRAE/灵码</span>
+        <span class="tag tag-teal">TRAE/灵码</span>
       </div>
 
-      <!-- rank 7 sonnet -->
-      <div style="display:flex; align-items:center; gap:8px; padding:6px 0; border-bottom:0.5px solid var(--color-border-tertiary);">
-        <div style="width:20px; height:20px; border-radius:50%; background:#B5D4F4; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:500; color:#042C53; flex-shrink:0;">7</div>
+      <div style="display:flex; align-items:center; gap:9px; padding:7px 0; border-bottom:1px solid #EEF1FB;">
+        <div class="rank-circle" style="background:#93C5FD; color:#1E3A8A;">7</div>
         <div style="flex:1; min-width:0;">
-          <div style="font-size:12px; font-weight:500; color:var(--color-text-primary);">claude-sonnet-4-6 <span style="font-size:10px; color:var(--color-text-secondary);">性价比之选</span></div>
-          <div style="display:flex; align-items:center; gap:6px; margin-top:3px;">
-            <div class="score-bar" style="flex:1;"><div class="score-fill" style="width:97%; background:#B5D4F4;"></div></div>
-            <span style="font-size:11px; color:#185FA5; font-weight:500;">1526</span>
+          <div style="font-size:12px; font-weight:600; color:#1A2040;">claude-sonnet-4-6 <span style="font-size:10px; color:#6B7CA8; font-weight:400;">性价比之选</span></div>
+          <div style="display:flex; align-items:center; gap:7px; margin-top:4px;">
+            <div class="score-bar" style="flex:1;"><div style="height:100%; width:97%; border-radius:4px; background:#93C5FD;"></div></div>
+            <span style="font-size:11px; color:#2563EB; font-weight:600; min-width:30px;">1526</span>
           </div>
         </div>
-        <span class="tag" style="background:#E6F1FB; color:#0C447C; flex-shrink:0;">Copilot</span>
+        <span class="tag tag-blue">Copilot</span>
       </div>
 
-      <!-- rank 10 qwen -->
-      <div style="display:flex; align-items:center; gap:8px; padding:6px 0;">
-        <div style="width:20px; height:20px; border-radius:50%; background:#FAC775; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:500; color:#412402; flex-shrink:0;">10</div>
+      <div style="display:flex; align-items:center; gap:9px; padding:7px 0;">
+        <div class="rank-circle" style="background:#FCD34D; color:#78350F;">10</div>
         <div style="flex:1; min-width:0;">
-          <div style="font-size:12px; font-weight:500; color:var(--color-text-primary);">qwen3.6-plus <span style="font-size:10px; color:var(--color-text-secondary);">灵码生态首选</span></div>
-          <div style="display:flex; align-items:center; gap:6px; margin-top:3px;">
-            <div class="score-bar" style="flex:1;"><div class="score-fill" style="width:93%; background:#FAC775;"></div></div>
-            <span style="font-size:11px; color:#854F0B; font-weight:500;">1471</span>
+          <div style="font-size:12px; font-weight:600; color:#1A2040;">qwen3.6-plus <span style="font-size:10px; color:#6B7CA8; font-weight:400;">灵码生态首选</span></div>
+          <div style="display:flex; align-items:center; gap:7px; margin-top:4px;">
+            <div class="score-bar" style="flex:1;"><div style="height:100%; width:93%; border-radius:4px; background:#FBBF24;"></div></div>
+            <span style="font-size:11px; color:#92400E; font-weight:600; min-width:30px;">1471</span>
           </div>
         </div>
-        <span class="tag tag-amber" style="flex-shrink:0;">通义/TRAE</span>
+        <span class="tag tag-amber">通义/TRAE</span>
       </div>
     </div>
   </div>
 
-  <!-- Scenario match -->
-  <div style="margin:0 12px 10px;">
-    <div style="font-size:13px; font-weight:500; color:var(--color-text-secondary); margin-bottom:8px;">场景适配速查</div>
-    <div style="display:flex; flex-direction:column; gap:6px;">
-
-      <div style="display:flex; align-items:center; gap:10px; background:var(--color-background-primary); border:0.5px solid var(--color-border-tertiary); border-radius:10px; padding:10px 12px;">
-        <div style="width:8px; height:8px; border-radius:50%; background:#185FA5; flex-shrink:0;"></div>
+  <!-- Scene match -->
+  <div style="margin:0 14px 12px;">
+    <div class="section-label">场景适配速查</div>
+    <div style="display:flex; flex-direction:column; gap:7px;">
+      <div class="row-item">
+        <div style="width:9px; height:9px; border-radius:50%; background:#2563EB; flex-shrink:0;"></div>
         <div style="flex:1;">
-          <span style="font-size:12px; font-weight:500; color:var(--color-text-primary);">新功能开发 / 复杂后端逻辑</span>
-          <div style="font-size:11px; color:var(--color-text-secondary); margin-top:2px;">TRAE-CN + glm-5.1 / qwen3.6-plus</div>
+          <div style="font-size:12px; font-weight:600; color:#1A2040;">新功能开发 / 复杂后端逻辑</div>
+          <div style="font-size:11px; color:#6B7CA8; margin-top:2px;">TRAE-CN + glm-5.1 / qwen3.6-plus</div>
         </div>
         <span class="tag tag-teal">推荐</span>
       </div>
-
-      <div style="display:flex; align-items:center; gap:10px; background:var(--color-background-primary); border:0.5px solid var(--color-border-tertiary); border-radius:10px; padding:10px 12px;">
-        <div style="width:8px; height:8px; border-radius:50%; background:#0F6E56; flex-shrink:0;"></div>
+      <div class="row-item">
+        <div style="width:9px; height:9px; border-radius:50%; background:#10B981; flex-shrink:0;"></div>
         <div style="flex:1;">
-          <span style="font-size:12px; font-weight:500; color:var(--color-text-primary);">前端设计稿还原</span>
-          <div style="font-size:11px; color:var(--color-text-secondary); margin-top:2px;">TRAE-CN + kimi-k2.6（多模态识图）</div>
+          <div style="font-size:12px; font-weight:600; color:#1A2040;">前端设计稿还原</div>
+          <div style="font-size:11px; color:#6B7CA8; margin-top:2px;">TRAE-CN + kimi-k2.6（多模态识图）</div>
         </div>
         <span class="tag tag-teal">推荐</span>
       </div>
-
-      <div style="display:flex; align-items:center; gap:10px; background:var(--color-background-primary); border:0.5px solid var(--color-border-tertiary); border-radius:10px; padding:10px 12px;">
-        <div style="width:8px; height:8px; border-radius:50%; background:#D85A30; flex-shrink:0;"></div>
+      <div class="row-item">
+        <div style="width:9px; height:9px; border-radius:50%; background:#F43F5E; flex-shrink:0;"></div>
         <div style="flex:1;">
-          <span style="font-size:12px; font-weight:500; color:var(--color-text-primary);">大型 LLD 文档驱动开发</span>
-          <div style="font-size:11px; color:var(--color-text-secondary); margin-top:2px;">ClaudeCode + claude-opus-4-6（200K 上下文）</div>
+          <div style="font-size:12px; font-weight:600; color:#1A2040;">大型 LLD 文档驱动开发</div>
+          <div style="font-size:11px; color:#6B7CA8; margin-top:2px;">ClaudeCode + claude-opus-4-6（200K 上下文）</div>
         </div>
         <span class="tag tag-coral">推荐</span>
       </div>
-
-      <div style="display:flex; align-items:center; gap:10px; background:var(--color-background-primary); border:0.5px solid var(--color-border-tertiary); border-radius:10px; padding:10px 12px;">
-        <div style="width:8px; height:8px; border-radius:50%; background:#534AB7; flex-shrink:0;"></div>
+      <div class="row-item">
+        <div style="width:9px; height:9px; border-radius:50%; background:#7C3AED; flex-shrink:0;"></div>
         <div style="flex:1;">
-          <span style="font-size:12px; font-weight:500; color:var(--color-text-primary);">数据不出内网 / 私有化部署</span>
-          <div style="font-size:11px; color:var(--color-text-secondary); margin-top:2px;">OpenCode + 本地 Ollama / 内网私有模型</div>
+          <div style="font-size:12px; font-weight:600; color:#1A2040;">数据不出内网 / 私有化部署</div>
+          <div style="font-size:11px; color:#6B7CA8; margin-top:2px;">OpenCode + 本地 Ollama / 内网私有模型</div>
         </div>
         <span class="tag tag-purple">推荐</span>
       </div>
-
-      <div style="display:flex; align-items:center; gap:10px; background:var(--color-background-primary); border:0.5px solid var(--color-border-tertiary); border-radius:10px; padding:10px 12px;">
-        <div style="width:8px; height:8px; border-radius:50%; background:#854F0B; flex-shrink:0;"></div>
+      <div class="row-item">
+        <div style="width:9px; height:9px; border-radius:50%; background:#F59E0B; flex-shrink:0;"></div>
         <div style="flex:1;">
-          <span style="font-size:12px; font-weight:500; color:var(--color-text-primary);">日常 Java/Python 编码补全</span>
-          <div style="font-size:11px; color:var(--color-text-secondary); margin-top:2px;">IDEA + Lingma/Copilot + qwen / claude-sonnet</div>
+          <div style="font-size:12px; font-weight:600; color:#1A2040;">日常 Java/Python 编码补全</div>
+          <div style="font-size:11px; color:#6B7CA8; margin-top:2px;">IDEA + Lingma/Copilot + qwen / claude-sonnet</div>
         </div>
         <span class="tag tag-amber">推荐</span>
       </div>
     </div>
   </div>
 
-  <!-- Budget guide -->
-  <div style="margin:0 12px 10px;">
-    <div style="font-size:13px; font-weight:500; color:var(--color-text-secondary); margin-bottom:8px;">预算策略速选</div>
-    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px;">
-      <div style="background:#EAF3DE; border-radius:10px; padding:10px 10px;">
-        <div style="font-size:11px; color:#27500A; font-weight:500; margin-bottom:4px;">充裕预算</div>
-        <div style="font-size:11px; color:#3B6D11; line-height:1.6;">claude-opus-4-6<br>glm-5.1</div>
+  <!-- Budget -->
+  <div style="margin:0 14px 12px;">
+    <div class="section-label">预算策略速选</div>
+    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px;">
+      <div style="background:#F0FDF4; border:1.5px solid #A7F3D0; border-radius:11px; padding:11px 10px;">
+        <div style="font-size:11px; font-weight:600; color:#14532D; margin-bottom:5px;">充裕预算</div>
+        <div style="font-size:11px; color:#065F46; line-height:1.8;">claude-opus-4-6<br>glm-5.1</div>
       </div>
-      <div style="background:#E6F1FB; border-radius:10px; padding:10px 10px;">
-        <div style="font-size:11px; color:#0C447C; font-weight:500; margin-bottom:4px;">日常开发</div>
-        <div style="font-size:11px; color:#185FA5; line-height:1.6;">claude-sonnet-4-6<br>kimi-k2.6</div>
+      <div style="background:#EFF6FF; border:1.5px solid #BFDBFE; border-radius:11px; padding:11px 10px;">
+        <div style="font-size:11px; font-weight:600; color:#1E3A8A; margin-bottom:5px;">日常开发</div>
+        <div style="font-size:11px; color:#1D4ED8; line-height:1.8;">claude-sonnet-4-6<br>kimi-k2.6</div>
       </div>
-      <div style="background:#FAEEDA; border-radius:10px; padding:10px 10px;">
-        <div style="font-size:11px; color:#633806; font-weight:500; margin-bottom:4px;">成本敏感</div>
-        <div style="font-size:11px; color:#854F0B; line-height:1.6;">minimax-m2.7<br>qwen3 标准</div>
+      <div style="background:#FFFBEB; border:1.5px solid #FDE68A; border-radius:11px; padding:11px 10px;">
+        <div style="font-size:11px; font-weight:600; color:#78350F; margin-bottom:5px;">成本敏感</div>
+        <div style="font-size:11px; color:#92400E; line-height:1.8;">minimax-m2.7<br>qwen3 标准</div>
       </div>
     </div>
   </div>
 
-  <!-- thinking vs standard -->
-  <div style="margin:0 12px 10px;">
-    <div style="background:var(--color-background-primary); border:0.5px solid var(--color-border-tertiary); border-radius:12px; padding:12px 14px;">
-      <div style="font-size:12px; font-weight:500; color:var(--color-text-primary); margin-bottom:8px;">Thinking 版 vs 标准版</div>
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
-        <div>
-          <div style="font-size:11px; font-weight:500; color:#185FA5; margin-bottom:4px;">Thinking 模式</div>
-          <div style="font-size:11px; color:var(--color-text-secondary); line-height:1.7;">扩展推理，输出质量更高<br>耗时较长<br>适合复杂任务</div>
+  <!-- Thinking vs Standard -->
+  <div style="margin:0 14px 12px;">
+    <div class="card">
+      <div style="font-size:12px; font-weight:600; color:#1A2040; margin-bottom:9px;">Thinking 版 vs 标准版</div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+        <div style="background:#EFF6FF; border:1px solid #BFDBFE; border-radius:9px; padding:10px;">
+          <div style="font-size:11px; font-weight:600; color:#1E40AF; margin-bottom:5px;">Thinking 模式</div>
+          <div style="font-size:11px; color:#1D4ED8; line-height:1.8;">扩展推理<br>输出质量更高<br>耗时较长<br>适合复杂任务</div>
         </div>
-        <div>
-          <div style="font-size:11px; font-weight:500; color:#0F6E56; margin-bottom:4px;">标准模式</div>
-          <div style="font-size:11px; color:var(--color-text-secondary); line-height:1.7;">响应速度快<br>日常补全优选<br>成本更低</div>
+        <div style="background:#F0FDF4; border:1px solid #A7F3D0; border-radius:9px; padding:10px;">
+          <div style="font-size:11px; font-weight:600; color:#14532D; margin-bottom:5px;">标准模式</div>
+          <div style="font-size:11px; color:#065F46; line-height:1.8;">响应速度快<br>日常补全优选<br>成本更低<br>流畅体验</div>
         </div>
       </div>
     </div>
   </div>
 
   <!-- Footer -->
-  <div style="text-align:center; padding:12px 16px 8px; border-top:0.5px solid var(--color-border-tertiary); margin:8px 12px 0;">
-    <div style="font-size:11px; color:var(--color-text-secondary);">AI 辅助开发工具图鉴 · 基于 Code Benchmark + 项目实践整理</div>
-    <div style="font-size:10px; color:var(--color-text-secondary); margin-top:3px;">数据截至 2025 · 模型排名以最新榜单为准</div>
+  <div style="text-align:center; padding:10px 16px 16px; border-top:1px solid #E2E8F4; margin:6px 14px 0;">
+    <div style="font-size:11px; color:#8896B3;">AI 辅助开发工具图鉴 · 基于 Code Benchmark + 项目实践整理</div>
+    <div style="font-size:10px; color:#A0AABF; margin-top:3px;">数据截至 2025 · 模型排名以最新榜单为准</div>
   </div>
 
 </div>
