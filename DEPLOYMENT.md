@@ -20,7 +20,7 @@ date: 2026-03-17
 ## 2. 当前目录
 
 ```text
-OutPut/AIGC3.0_RoCE流路径交互原型/
+Knowledge/AI Job/AIGC3.0_RoCE流路径交互原型/
 ```
 
 ## 3. 本地仓库状态
@@ -109,7 +109,7 @@ fatal: Authentication failed for 'https://github.com/xiekai-ruijie/RoCEFlowUIDem
 在本目录执行：
 
 ```zsh
-cd "/Users/alexmac2/Documents/个人/Obsidian Vault/AI_Avatar/OutPut/AIGC3.0_RoCE流路径交互原型"
+cd "/Users/alexmac2/Documents/个人/Obsidian Vault/AI_Avatar/Knowledge/AI Job/AIGC3.0_RoCE流路径交互原型"
 git push -u origin main
 ```
 
@@ -139,7 +139,7 @@ Settings -> Pages -> Source: GitHub Actions
 ## 11. 临时本地预览
 
 ```zsh
-cd "/Users/alexmac2/Documents/个人/Obsidian Vault/AI_Avatar/OutPut/AIGC3.0_RoCE流路径交互原型"
+cd "/Users/alexmac2/Documents/个人/Obsidian Vault/AI_Avatar/Knowledge/AI Job/AIGC3.0_RoCE流路径交互原型"
 python3 -m http.server 8017
 ```
 
@@ -148,4 +148,3 @@ python3 -m http.server 8017
 ```text
 http://127.0.0.1:8017
 ```
-

@@ -715,6 +715,244 @@ window.ROCE_MOCK_DATA = {
     };
   }
 
+  const DRILL_PORTS = ['GiO/1', 'GiO/2', 'GiO/3', 'GiO/4', 'GiO/5', 'GiO/6', 'GiO/7', 'GiO/8', 'GiO/9'];
+
+  function buildDrillMetrics(flow, slotIndex) {
+    return {
+      portDownCount: flow.alarmSummary?.critical > 0 ? 2 : 0,
+      pfcCount: 22 + (slotIndex % 9),
+      queueExceedCount: 6 + (slotIndex % 5),
+      queueDelayMax: 96 + (slotIndex % 7) * 10,
+      lossPercent: Number((4.1 + (slotIndex % 4) * 0.55).toFixed(1)),
+      ecnPackets: 980 + slotIndex * 18,
+      pfcTriggerCount: 24 + (slotIndex % 8),
+      queueDelayValue: 132 + (slotIndex % 6) * 8
+    };
+  }
+
+  function buildSmoothSeries(base, count, slotIndex, { amplitude = 8, spike = null, valley = null } = {}) {
+    return Array.from({ length: count }, (_, index) => {
+      const waveA = Math.sin((index + slotIndex) * 0.72) * amplitude;
+      const waveB = Math.sin((index + slotIndex) * 1.36) * amplitude * 0.42;
+      let value = base + waveA + waveB;
+      if (spike && index >= spike.start && index <= spike.end) {
+        const peakOffset = Math.abs((spike.start + spike.end) / 2 - index);
+        value += Math.max(0, spike.height - peakOffset * spike.decay);
+      }
+      if (valley && index >= valley.start && index <= valley.end) {
+        const centerOffset = Math.abs((valley.start + valley.end) / 2 - index);
+        value -= Math.max(0, valley.depth - centerOffset * valley.decay);
+      }
+      return Math.max(0, Math.round(value * 10) / 10);
+    });
+  }
+
+  function buildPfcCharts(slotIndex) {
+    const labels = Array.from({ length: 11 }, (_, index) => {
+      const minutes = String(index * 2).padStart(2, '0');
+      return `06:${minutes}`;
+    });
+    return [
+      {
+        title: 'PFX报文',
+        unit: '',
+        labels,
+        series: [{ name: 'PFC', color: '#1d6bff', values: buildSmoothSeries(28 + slotIndex * 0.3, labels.length, slotIndex, { amplitude: 2.6, valley: { start: 7, end: 8, depth: 10, decay: 4.2 } }) }]
+      },
+      {
+        title: '端口的利用率',
+        unit: '%',
+        labels,
+        series: [{ name: '利用率', color: '#1d6bff', values: buildSmoothSeries(32 + slotIndex * 0.25, labels.length, slotIndex + 2, { amplitude: 2.8, valley: { start: 7, end: 8, depth: 11, decay: 4.6 } }) }]
+      },
+      {
+        title: 'ECN',
+        unit: '',
+        labels,
+        series: [{ name: 'ECN', color: '#1d6bff', values: buildSmoothSeries(24 + slotIndex * 0.2, labels.length, slotIndex + 1, { amplitude: 2.4, valley: { start: 7, end: 8, depth: 9, decay: 3.8 } }) }]
+      },
+      {
+        title: '丢包',
+        unit: '%',
+        labels,
+        series: [{ name: '丢包', color: '#1d6bff', values: buildSmoothSeries(20 + slotIndex * 0.2, labels.length, slotIndex + 3, { amplitude: 2.2, valley: { start: 7, end: 8, depth: 8, decay: 3.4 } }) }]
+      }
+    ];
+  }
+
+  function buildQueueLegendSeries(slotIndex) {
+    const labels = Array.from({ length: 14 }, (_, index) => `06:${String(index * 1 + 8).padStart(2, '0')}:${index % 2 === 0 ? '10' : '20'}`);
+    return {
+      labels,
+      legend: [
+        { port: 'GiO/1', color: '#1d6bff' },
+        { port: 'GiO/2', color: '#ff8b14' },
+        { port: 'GiO/3', color: '#ffed57' },
+        { port: 'GiO/4', color: '#12d3a7' },
+        { port: 'GiO/5', color: '#ff5a1f', point: true }
+      ],
+      series: {
+        'GiO/1': buildSmoothSeries(80, labels.length, slotIndex, { amplitude: 4, valley: { start: 10, end: 11, depth: 24, decay: 10 } }),
+        'GiO/2': buildSmoothSeries(56, labels.length, slotIndex + 1, { amplitude: 4, valley: { start: 10, end: 11, depth: 18, decay: 8 } }),
+        'GiO/3': buildSmoothSeries(40, labels.length, slotIndex + 2, { amplitude: 4, spike: { start: 6, end: 8, height: 38, decay: 12 }, spike2: true, valley: { start: 11, end: 12, depth: 22, decay: 11 } }),
+        'GiO/4': buildSmoothSeries(22, labels.length, slotIndex + 3, { amplitude: 4, valley: { start: 10, end: 11, depth: 30, decay: 12 } }),
+        'GiO/5': buildSmoothSeries(48, labels.length, slotIndex + 4, { amplitude: 4, valley: { start: 10, end: 11, depth: 28, decay: 10 } })
+      },
+      highlightRange: { start: 5, end: 6, label: '06:08:12 - 06:09:12' },
+      referenceLine: { index: 9 },
+      tooltip: {
+        title: '高延时占比',
+        time: '06:12:23:12331',
+        values: [
+          { port: 'GiO/1', value: '1%' },
+          { port: 'GiO/2', value: '0.5%' },
+          { port: 'GiO/3', value: '1%' },
+          { port: 'GiO/4', value: '1%' },
+          { port: 'GiO/5', value: '1%' }
+        ]
+      }
+    };
+  }
+
+  function buildQueuePortList() {
+    return DRILL_PORTS.map((port, index) => ({ port, active: index < 5 }));
+  }
+
+  function buildQueueLengthTable(slotIndex) {
+    return {
+      title: '数据统计 06:08:12:11111 – 06:09:12:12345',
+      columns: ['端口ID', '队列ID', '时间', '拥堵持续 (微秒)', '队列长度', '最大队列长度时间 (微秒)'],
+      rows: [
+        ['GiO/1', '5', '4:27:23:12312', '2737967', '122', '4:27:23:123 – 4:27:30:150'],
+        ['GiO/2', '5', '4:27:23:12311', '2737967', '122', '4:27:23:223 – 4:27:31:150'],
+        ['GiO/3', '5', '4:27:23:12511', '2737967', '122', '4:27:23:523 – 4:27:34:150']
+      ],
+      pageCount: 5,
+      page: 1,
+      slotIndex
+    };
+  }
+
+  function buildQueueLengthExpandedTable() {
+    return {
+      title: '数据统计 06:08:12:11111 – 06:09:12:12345',
+      columns: ['端口ID', '队列ID', '时间', '拥堵持续 (微秒)', '队列长度', '最大队列长度时间 (微秒)'],
+      rows: [
+        ['GiO/1', '5', '4:27:23:12312', '2737967', '122', '4:27:23:123 – 4:27:30:150'],
+        ['GiO/2', '5', '4:27:23:12311', '2737967', '122', '4:27:23:223 – 4:27:31:150'],
+        ['GiO/3', '5', '4:27:23:12511', '2737967', '122', '4:27:23:523 – 4:27:34:150']
+      ],
+      pageCount: 5,
+      page: 1
+    };
+  }
+
+  function buildLatencyTable() {
+    return {
+      title: '数据统计 06:08:12 – 06:09:12',
+      columns: ['端口ID', '时间', '高时延报文数', '高时延占比', '操作'],
+      rows: [
+        ['GiO/1', '4:27:23', '12312', '0.32%', '查看详情'],
+        ['GiO/1', '4:27:23', '12312', '0.42%', '查看详情'],
+        ['GiO/1', '4:27:23', '12312', '0.35%', '查看详情']
+      ],
+      pageCount: 1,
+      page: 1
+    };
+  }
+
+  function buildLatencyDetail() {
+    return {
+      title: '时延区间报文',
+      cardTitle: '时延数据',
+      value: 156,
+      unit: 'μs',
+      normalRange: '< 10',
+      bars: [4400, 5100, 4550, 4080, 3380, 2360, 2210],
+      labels: ['1', '2', '3', '4', '5', '6', '7'],
+      yTicks: [1000, 2000, 3000, 4000, 5000, 6000]
+    };
+  }
+
+  function buildPortDownAlarms(flow, slotIndex) {
+    if (flow.alarmSummary?.critical === 0 && flow.alarmSummary?.error === 0) {
+      return [];
+    }
+    const [year = '2026', month = '03', day = '16'] = String(flow.lastActive || '2026-03-16 00:00').split(' ')[0].split('-');
+    const hour = String(Math.floor(slotIndex / 2)).padStart(2, '0');
+    const minute = slotIndex % 2 === 0 ? '00' : '30';
+    return [
+      { port: 'Eth1/1', time: `${year}-${month}-${day} ${hour}:${minute}`, duration: '4分12秒', status: 'recovered', statusLabel: '已恢复' },
+      { port: 'Eth1/3', time: `${year}-${month}-${day} ${hour}:${String(Number(minute) + 14).padStart(2, '0')}`, duration: '持续中', status: 'ongoing', statusLabel: '持续中' }
+    ];
+  }
+
+  function buildDrillTrendValues(base, count, slotIndex) {
+    return Array.from({ length: count }, (_, i) => {
+      const noise = 1 + Math.sin((i + slotIndex) * 0.65) * 0.18;
+      return Math.round(base * noise * 10) / 10;
+    });
+  }
+
+  function buildPfcTrend(flow, slotIndex) {
+    return {
+      unit: 'fps',
+      ports: ['Eth1/1', 'Eth1/2'],
+      series: {
+        'Eth1/1': { values: buildDrillTrendValues(36 + slotIndex % 20, 12, slotIndex), alerts: [4, 8] },
+        'Eth1/2': { values: buildDrillTrendValues(18 + slotIndex % 10, 12, slotIndex + 3), alerts: [3] }
+      }
+    };
+  }
+
+  function buildQueueLengthTrend(flow, slotIndex) {
+    return {
+      unit: 'KB',
+      ports: ['Eth1/1', 'Eth1/2', 'Eth1/3'],
+      series: {
+        'Eth1/1': { values: buildDrillTrendValues(420 + slotIndex * 8, 12, slotIndex), alerts: [5, 9] },
+        'Eth1/2': { values: buildDrillTrendValues(280 + slotIndex * 4, 12, slotIndex + 2), alerts: [4] },
+        'Eth1/3': { values: buildDrillTrendValues(190 + slotIndex * 2, 12, slotIndex + 5), alerts: [] }
+      }
+    };
+  }
+
+  function buildQueueDelayTrend(flow, slotIndex) {
+    return {
+      unit: 'μs',
+      ports: ['Eth1/1', 'Eth1/2'],
+      series: {
+        'Eth1/1': { values: buildDrillTrendValues(62 + slotIndex * 3, 12, slotIndex), alerts: [3, 7, 10] },
+        'Eth1/2': { values: buildDrillTrendValues(44 + slotIndex * 2, 12, slotIndex + 4), alerts: [6] }
+      }
+    };
+  }
+
+  function buildDrillDown(flow, slotIndex) {
+    return {
+      metrics: buildDrillMetrics(flow, slotIndex),
+      portDownAlarms: buildPortDownAlarms(flow, slotIndex),
+      pfcTrend: buildPfcTrend(flow, slotIndex),
+      pfcCharts: buildPfcCharts(slotIndex),
+      queueLengthTrend: buildQueueLengthTrend(flow, slotIndex),
+      queueLengthView: {
+        title: '队列长度',
+        ports: buildQueuePortList(),
+        chart: buildQueueLegendSeries(slotIndex),
+        table: buildQueueLengthTable(slotIndex),
+        expandedTable: buildQueueLengthExpandedTable()
+      },
+      queueDelayTrend: buildQueueDelayTrend(flow, slotIndex),
+      queueDelayView: {
+        title: '队列延迟占比',
+        ports: buildQueuePortList(),
+        chart: buildQueueLegendSeries(slotIndex + 1),
+        table: buildLatencyTable(),
+        detail: buildLatencyDetail()
+      }
+    };
+  }
+
   data.flows.forEach((flow) => {
     if (!flow.direction) {
       flow.direction = flow.srcPort === '4791' ? 'reverse' : 'forward';
@@ -728,6 +966,11 @@ window.ROCE_MOCK_DATA = {
     if (!flow.detailView) {
       flow.detailView = buildDetailView(flow);
     }
+    if (!flow.drillDown) {
+      const slots = (flow.alarmHeatmap || buildAlarmHeatmap(flow)).slots || [];
+      flow.drillDown = Object.fromEntries(
+        slots.map((slot, slotIndex) => [slot, buildDrillDown(flow, slotIndex)])
+      );
+    }
   });
 })();
-

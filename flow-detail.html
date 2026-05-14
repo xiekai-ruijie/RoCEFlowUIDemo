@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>流路径详情</title>
   <link rel="icon" href="data:," />
-  <link rel="stylesheet" href="./assets/styles/main.css" />
+  <link rel="stylesheet" href="assets/styles/main.css" />
 </head>
 <body class="app-page app-page-flow-detail">
   <header class="app-nav-shell">
@@ -13,7 +13,7 @@
       <span class="app-brand-icon">☁</span>
     </div>
     <nav class="product-nav">
-      <a class="product-nav-item" href="./home.html">首页</a>
+      <a class="product-nav-item" href="home.html">首页</a>
       <span class="product-nav-item is-disabled">设计</span>
       <span class="product-nav-item is-disabled">部署</span>
       <div class="product-nav-item product-nav-dropdown is-active" data-menu="analysis">
@@ -35,7 +35,7 @@
           </div>
           <div class="analysis-menu-column">
             <div class="analysis-menu-title">RoCE业务分析</div>
-            <a class="analysis-menu-link is-current" href="./index.html">AI任务</a>
+            <a class="analysis-menu-link is-current" href="index.html">AI任务</a>
             <span class="analysis-menu-link is-disabled">服务器</span>
             <span class="analysis-menu-link is-disabled">集合通信</span>
             <span class="analysis-menu-link is-disabled">自适应ECN</span>
@@ -43,7 +43,7 @@
           </div>
           <div class="analysis-menu-column">
             <div class="analysis-menu-title">诊断分析</div>
-            <a class="analysis-menu-link" href="./fault-diagnosis.html">故障一键诊断</a>
+            <a class="analysis-menu-link" href="fault-diagnosis.html">故障一键诊断</a>
             <span class="analysis-menu-link is-disabled">DDC Ping</span>
             <span class="analysis-menu-link is-disabled">连通性探测</span>
           </div>
@@ -66,7 +66,7 @@
             <h1 id="detailTitle">流路径详情</h1>
           </div>
           <div class="flow-detail-actions">
-            <a class="btn btn-secondary" href="./index.html">返回列表</a>
+            <a class="btn btn-secondary" href="index.html">返回列表</a>
             <button class="btn btn-primary" id="detailDiagnosisBtn" type="button">一键故障诊断</button>
           </div>
         </div>
@@ -157,9 +157,31 @@
     </main>
   </div>
 
-  <script src="./assets/scripts/data.js"></script>
-  <script src="./assets/scripts/nav.js"></script>
-  <script src="./assets/scripts/flow-detail.js"></script>
+  <!-- ===== 下钻分析面板 ===== -->
+  <div class="drilldown-overlay" id="drilldownOverlay" hidden aria-hidden="true">
+    <div class="drilldown-panel" id="drilldownPanel" role="dialog" aria-modal="true" aria-labelledby="drilldownTitle">
+      <div class="drilldown-header">
+        <div class="drilldown-header-left">
+          <h2 class="drilldown-title" id="drilldownTitle">下钻分析</h2>
+          <p class="drilldown-subtitle" id="drilldownSubtitle"></p>
+        </div>
+        <button class="drilldown-close" id="drilldownClose" type="button" aria-label="关闭下钻面板">×</button>
+      </div>
+      <div class="drilldown-time-nav" id="drilldownTimeNav">
+        <div class="drilldown-time-nav-label">时间轴</div>
+        <div class="drilldown-time-track" id="drilldownTimeTrack"></div>
+      </div>
+      <div class="drilldown-body">
+        <div class="drilldown-metrics-row" id="drilldownMetrics"></div>
+        <div class="drilldown-alarm-tabs" id="drilldownTabs"></div>
+        <div id="drilldownTabPanels"></div>
+      </div>
+      <div class="drilldown-modal-layer" id="drilldownModalLayer"></div>
+    </div>
+  </div>
+
+  <script src="assets/scripts/data.js"></script>
+  <script src="assets/scripts/nav.js"></script>
+  <script src="assets/scripts/flow-detail.js"></script>
 </body>
 </html>
-

@@ -3,11 +3,11 @@ tags: [output, prototype, AIGC3.0, RoCE, UI, interactive]
 date: 2026-03-16
 source:
   - 用户提供截图（用户旅程 / SRS表格 / 原型参考 / 高保真风格）
-  - Knowledge/SRS书写规范与评审指南.md
-  - Knowledge/RoCE流路径及诊断需求拆解与架构经验记录.md
-  - Knowledge/ONC-Analyzer_AIGC组网架构与配置基线_基于锐捷方案V1.5.md
-  - OutPut/AIGC3.0_RoCE流路径_IFA方案SRS及代码量估算_2026-03-06.md
-  - OutPut/告警详情与告警总览SRS项_2026-03-10.md
+  - Knowledge/Common_Docs/SRS书写规范与评审指南.md
+  - Knowledge/AI Job/RoCE流路径及诊断需求拆解与架构经验记录.md
+  - Knowledge/Common_Docs/ONC-Analyzer_AIGC组网架构与配置基线_基于锐捷方案V1.5.md
+  - Knowledge/AI Job/AIGC3.0_RoCE流路径_IFA方案SRS及代码量估算_2026-03-06.md
+  - Knowledge/AI Job/告警详情与告警总览SRS项_2026-03-10.md
 ---
 
 # AIGC3.0_RoCE流路径交互原型
@@ -53,7 +53,7 @@ AIGC3.0_RoCE流路径交互原型/
 在本目录执行：
 
 ```zsh
-cd "/Users/alexmac2/Documents/个人/Obsidian Vault/AI_Avatar/OutPut/AIGC3.0_RoCE流路径交互原型"
+cd "/Users/alexmac2/Documents/个人/Obsidian Vault/AI_Avatar/Knowledge/AI Job/AIGC3.0_RoCE流路径交互原型"
 python3 -m http.server 8000
 ```
 
@@ -103,4 +103,3 @@ http://127.0.0.1:8000
 6. 选择异常流，点击“查看详情”
 7. 在详情页依次切换“概览与拓扑 / 指标趋势 / 告警记录”，并展开“匹配流的设备”查看接口详情
 8. 点击“一键故障诊断”跳转到独立诊断页，查看任务列表、树图分析，并可新增检测任务
-

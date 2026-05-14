@@ -30,7 +30,17 @@
     jitterChart: document.getElementById('jitterChart'),
     lossChart: document.getElementById('lossChart'),
     pfcChart: document.getElementById('pfcChart'),
-    ecnChart: document.getElementById('ecnChart')
+    ecnChart: document.getElementById('ecnChart'),
+    drilldownOverlay: document.getElementById('drilldownOverlay'),
+    drilldownPanel: document.getElementById('drilldownPanel'),
+    drilldownClose: document.getElementById('drilldownClose'),
+    drilldownTitle: document.getElementById('drilldownTitle'),
+    drilldownSubtitle: document.getElementById('drilldownSubtitle'),
+    drilldownTimeTrack: document.getElementById('drilldownTimeTrack'),
+    drilldownMetrics: document.getElementById('drilldownMetrics'),
+    drilldownTabs: document.getElementById('drilldownTabs'),
+    drilldownTabPanels: document.getElementById('drilldownTabPanels'),
+    drilldownModalLayer: document.getElementById('drilldownModalLayer')
   };
 
   const state = {
@@ -38,7 +48,19 @@
     selectedEntityKey: 'all',
     expandedDeviceIds: [],
     topologyMode: 'default',
-    focusedDeviceId: null
+    focusedDeviceId: null,
+    drilldown: {
+      open: false,
+      entityKey: null,
+      rowLabel: null,
+      rowCells: null,
+      slotIndex: null,
+      activeTab: 0,
+      activePort: {},
+      queueLengthExpanded: false,
+      latencyModalOpen: false,
+      latencyModalRowIndex: null
+    }
   };
 
   function hasItems(list) {
@@ -643,7 +665,16 @@
                     </div>
                     <div class="heatmap-cell-track heatmap-cell-track-fixed">
                       ${(row.cells || [])
-                        .map((cell) => `<span class="heatmap-cell ${cell.level}" title="${row.label} / ${cell.slot}：${cell.text}"></span>`)
+                        .map((cell, slotIndex) => `<button
+                          class="heatmap-cell ${cell.level}"
+                          type="button"
+                          title="${row.label} / ${cell.slot}：${cell.text}"
+                          data-slot="${cell.slot}"
+                          data-slot-index="${slotIndex}"
+                          data-entity-key="${row.entityKey}"
+                          data-row-label="${row.label}"
+                          data-level="${cell.level}"
+                        ></button>`)
                         .join('')}
                     </div>
                   </div>
@@ -682,6 +713,564 @@
     renderCharts(flow);
     renderHeatmap(flow);
     updateSelectionCopy(flow);
+  }
+
+  const DRILLDOWN_TABS = [
+    { key: 'portDown', label: '端口异常Down' },
+    { key: 'pfc', label: 'PFC告警' },
+    { key: 'queueLength', label: '队列长度超限' },
+    { key: 'queueDelay', label: '队列延迟' }
+  ];
+
+  const DRILLDOWN_METRICS_CONFIG = [
+    { key: 'lossPercent', label: '丢包数量', unit: '%', color: '#4ef4ba', meta: '最新采样点', foot: '阈值：3%' },
+    { key: 'ecnPackets', label: 'ECN报文数', unit: '个', color: '#4ef4ba', foot: '阈值：10' },
+    { key: 'pfcTriggerCount', label: 'PFC触发次数', unit: '个', color: '#4ef4ba', foot: '正常范围：< 10' },
+    { key: 'queueDelayValue', label: '时延数据', unit: 'μs', color: '#4ef4ba', foot: '正常范围：< 10' }
+  ];
+
+  const DRILLDOWN_PORT_COLORS = {
+    'GiO/1': '#1d6bff',
+    'GiO/2': '#ff8b14',
+    'GiO/3': '#ffed57',
+    'GiO/4': '#12d3a7',
+    'GiO/5': '#ff5a1f',
+    'Eth1/1': '#1d6bff',
+    'Eth1/2': '#ff8b14',
+    'Eth1/3': '#ffed57',
+    'Eth1/4': '#12d3a7',
+    'Eth1/5': '#ff5a1f'
+  };
+
+  function getDrillData(flow, slot) {
+    return (flow.drillDown && flow.drillDown[slot]) || null;
+  }
+
+  function renderDrilldownTimeNav(cells, activeSlotIndex) {
+    refs.drilldownTimeTrack.innerHTML = (cells || [])
+      .map((cell, idx) => `<button
+        class="drilldown-time-slot ${cell.level} ${idx === activeSlotIndex ? 'is-active' : ''}"
+        type="button"
+        title="${cell.slot}"
+        data-dd-slot-index="${idx}"
+      ><span class="drilldown-time-slot-dot"></span>${cell.slot}</button>`)
+      .join('');
+  }
+
+  function renderDrilldownMetrics(drillData) {
+    if (!drillData) {
+      refs.drilldownMetrics.innerHTML = '';
+      return;
+    }
+    const metrics = drillData.metrics || {};
+    refs.drilldownMetrics.innerHTML = DRILLDOWN_METRICS_CONFIG
+      .map((cfg) => {
+        const val = metrics[cfg.key] != null ? metrics[cfg.key] : '—';
+        return `
+          <div class="drilldown-metric-card">
+            <div class="drilldown-metric-label">${cfg.label}</div>
+            <div class="drilldown-metric-value" style="color:${cfg.color}">${val}<span class="drilldown-metric-unit">${cfg.unit}</span>${cfg.meta ? `<span class="drilldown-metric-meta">${cfg.meta}</span>` : ''}</div>
+            <div class="drilldown-metric-foot">${cfg.foot || ''}</div>
+          </div>
+        `;
+      })
+      .join('');
+  }
+
+  function closeLatencyModal() {
+    state.drilldown.latencyModalOpen = false;
+    state.drilldown.latencyModalRowIndex = null;
+    refs.drilldownModalLayer.innerHTML = '';
+  }
+
+  function getChartColor(port, fallbackIndex) {
+    const fallback = ['#1d6bff', '#ff8b14', '#ffed57', '#12d3a7', '#ff5a1f', '#8b5cf6', '#53d3ff'];
+    return DRILLDOWN_PORT_COLORS[port] || fallback[fallbackIndex % fallback.length];
+  }
+
+  function renderSimpleTrendCard(chart) {
+    const values = chart.series?.[0]?.values || [];
+    const labels = chart.labels || [];
+    const color = chart.series?.[0]?.color || '#1d6bff';
+    if (!values.length) {
+      return '<div class="empty-state">暂无数据</div>';
+    }
+    const width = 520;
+    const height = 200;
+    const leftPad = 16;
+    const rightPad = 8;
+    const topPad = 18;
+    const bottomPad = 28;
+    const max = Math.max(...values, 1);
+    const min = Math.min(...values, 0);
+    const range = max - min || 1;
+    const points = values.map((value, index) => {
+      const x = leftPad + (index * (width - leftPad - rightPad)) / Math.max(values.length - 1, 1);
+      const y = height - bottomPad - ((value - min) / range) * (height - topPad - bottomPad);
+      return { x, y };
+    });
+    const pointLine = points.map((point) => `${point.x},${point.y}`).join(' ');
+    const yLines = Array.from({ length: 4 }, (_, index) => {
+      const y = topPad + ((height - topPad - bottomPad) / 3) * index;
+      return `<line x1="${leftPad}" y1="${y}" x2="${width - rightPad}" y2="${y}" stroke="rgba(58,124,214,0.55)" stroke-dasharray="4 6" />`;
+    }).join('');
+    const xLabels = labels.map((label, index) => {
+      if (!(index === 0 || index === labels.length - 1 || index % 2 === 0)) return '';
+      const point = points[index];
+      return `<text x="${point.x}" y="${height - 8}" class="drilldown-axis-text" text-anchor="middle">${label}</text>`;
+    }).join('');
+    return `
+      <div class="drilldown-reference-card">
+        <div class="drilldown-reference-card-title">${chart.title}</div>
+        <svg viewBox="0 0 ${width} ${height}" class="drilldown-reference-svg">
+          ${yLines}
+          <polyline points="${pointLine}" fill="none" stroke="${color}" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round"></polyline>
+          ${xLabels}
+        </svg>
+      </div>
+    `;
+  }
+
+  function renderPfcPanel(drillData) {
+    return `
+      <div class="drilldown-reference-layout drilldown-pfc-layout">
+        <div class="drilldown-chart-grid">
+          ${(drillData.pfcCharts || []).map((chart) => renderSimpleTrendCard(chart)).join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  function renderQueuePortList(ports, tabKey) {
+    const activePort = state.drilldown.activePort[tabKey] || null;
+    return `
+      <div class="drilldown-port-side-list">
+        <div class="drilldown-port-side-title">告警端口</div>
+        <div class="drilldown-port-side-subtitle">单次最多可选5个端口展示</div>
+        <div class="drilldown-port-side-items">
+          ${(ports || []).map((item) => `
+            <button class="drilldown-side-port-btn ${(activePort ? activePort === item.port : item.active) ? 'is-active' : ''}" data-dd-port="${item.port}" data-dd-tab="${tabKey}">${item.port}</button>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  function renderReferenceLegend(legend) {
+    return `
+      <div class="drilldown-reference-legend">
+        ${(legend || []).map((item) => `
+          <span class="drilldown-reference-legend-item">
+            <span class="drilldown-reference-legend-swatch ${item.point ? 'is-point' : ''}" style="--legend-color:${item.color}"></span>${item.port}
+          </span>
+        `).join('')}
+      </div>
+    `;
+  }
+
+  function buildMultiSeriesSvg(chart, selectedPorts, options = {}) {
+    const width = options.width || 720;
+    const height = options.height || 360;
+    const leftPad = 40;
+    const rightPad = 20;
+    const topPad = 24;
+    const bottomPad = 44;
+    const labels = chart.labels || [];
+    const ports = selectedPorts?.length ? selectedPorts : Object.keys(chart.series || {});
+    const allValues = ports.flatMap((port) => chart.series?.[port] || []);
+    const max = Math.max(...allValues, 1);
+    const min = Math.min(...allValues, 0);
+    const range = max - min || 1;
+    const yLines = Array.from({ length: 5 }, (_, index) => {
+      const y = topPad + ((height - topPad - bottomPad) / 4) * index;
+      return `<line x1="${leftPad}" y1="${y}" x2="${width - rightPad}" y2="${y}" stroke="rgba(58,124,214,0.55)" stroke-dasharray="4 6" />`;
+    }).join('');
+    const xTicks = labels.map((label, index) => {
+      const x = leftPad + (index * (width - leftPad - rightPad)) / Math.max(labels.length - 1, 1);
+      return `
+        <line x1="${x}" y1="${height - bottomPad}" x2="${x}" y2="${height - bottomPad + 10}" stroke="rgba(129,148,181,0.35)" />
+        ${index % 2 === 0 || index === labels.length - 1 ? `<text x="${x}" y="${height - 12}" class="drilldown-axis-text" text-anchor="middle">${label}</text>` : ''}
+      `;
+    }).join('');
+    const paths = ports.map((port, portIndex) => {
+      const values = chart.series?.[port] || [];
+      const points = values.map((value, index) => {
+        const x = leftPad + (index * (width - leftPad - rightPad)) / Math.max(values.length - 1, 1);
+        const y = height - bottomPad - ((value - min) / range) * (height - topPad - bottomPad);
+        return { x, y };
+      });
+      const color = getChartColor(port, portIndex);
+      const polyline = points.map((point) => `${point.x},${point.y}`).join(' ');
+      return `<polyline points="${polyline}" fill="none" stroke="${color}" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"></polyline>`;
+    }).join('');
+    const band = chart.highlightRange ? (() => {
+      const x1 = leftPad + (chart.highlightRange.start * (width - leftPad - rightPad)) / Math.max(labels.length - 1, 1);
+      const x2 = leftPad + (chart.highlightRange.end * (width - leftPad - rightPad)) / Math.max(labels.length - 1, 1);
+      return `
+        <rect x="${x1}" y="${topPad}" width="${Math.max(14, x2 - x1)}" height="${height - topPad - bottomPad}" fill="rgba(29,107,255,0.28)"></rect>
+        <text x="${x1 + 4}" y="${topPad - 6}" class="drilldown-band-label">${chart.highlightRange.label}</text>
+      `;
+    })() : '';
+    const refLine = chart.referenceLine ? (() => {
+      const x = leftPad + (chart.referenceLine.index * (width - leftPad - rightPad)) / Math.max(labels.length - 1, 1);
+      return `<line x1="${x}" y1="${topPad}" x2="${x}" y2="${height - bottomPad}" stroke="rgba(255,255,255,0.6)" />`;
+    })() : '';
+    const tooltip = chart.tooltip ? (() => {
+      const tooltipX = leftPad + ((chart.referenceLine?.index || 8) * (width - leftPad - rightPad)) / Math.max(labels.length - 1, 1) + 16;
+      const tooltipY = topPad + 44;
+      return `
+        <foreignObject x="${tooltipX}" y="${tooltipY}" width="150" height="160">
+          <div xmlns="http://www.w3.org/1999/xhtml" class="drilldown-chart-tooltip">
+            <div class="drilldown-chart-tooltip-title">${chart.tooltip.title}</div>
+            <div class="drilldown-chart-tooltip-time">${chart.tooltip.time}</div>
+            ${chart.tooltip.values.map((item, index) => `<div class="drilldown-chart-tooltip-row"><span class="drilldown-chart-tooltip-port"><span class="drilldown-chart-tooltip-dot" style="background:${getChartColor(item.port, index)}"></span>${item.port}</span><strong>${item.value}</strong></div>`).join('')}
+          </div>
+        </foreignObject>
+      `;
+    })() : '';
+    return `
+      <svg viewBox="0 0 ${width} ${height}" class="drilldown-reference-svg is-large">
+        <rect x="${leftPad}" y="${topPad}" width="${width - leftPad - rightPad}" height="${height - topPad - bottomPad}" fill="rgba(40,73,137,0.45)"></rect>
+        ${yLines}
+        ${band}
+        ${paths}
+        ${refLine}
+        ${xTicks}
+        ${tooltip}
+      </svg>
+    `;
+  }
+
+  function renderQueueTable(table, detailAction) {
+    return `
+      <div class="drilldown-table-card">
+        <div class="drilldown-table-card-title">${table.title}</div>
+        <table class="drilldown-reference-table">
+          <thead>
+            <tr>${table.columns.map((column) => `<th>${column}<span class="drilldown-sort-mark">↕</span></th>`).join('')}</tr>
+          </thead>
+          <tbody>
+            ${(table.rows || []).map((row, rowIndex) => `
+              <tr>
+                ${row.map((cell, cellIndex) => {
+                  const isAction = cell === '查看详情' && detailAction;
+                  return `<td>${isAction ? `<button class="drilldown-detail-link" data-dd-latency-detail="${rowIndex}">${cell}</button>` : cell}</td>`;
+                }).join('')}
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+        <div class="drilldown-table-pagination">
+          <button class="drilldown-page-arrow">‹</button>
+          ${Array.from({ length: table.pageCount || 1 }, (_, index) => `<button class="drilldown-page-number ${index + 1 === (table.page || 1) ? 'is-active' : ''}">${index + 1}</button>`).join('')}
+          <button class="drilldown-page-arrow">›</button>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderQueueMainPanel(view, tabKey) {
+    const selectedPort = state.drilldown.activePort[tabKey] || null;
+    const selectedPorts = selectedPort ? [selectedPort] : (view.chart.legend || []).slice(0, 5).map((item) => item.port);
+    const expanded = tabKey === 'queueLength' && state.drilldown.queueLengthExpanded;
+    return `
+      <div class="drilldown-reference-layout drilldown-queue-layout ${expanded ? 'is-expanded' : ''}">
+        <div class="drilldown-queue-header-row">
+          <div class="drilldown-queue-title-block">
+            <div class="drilldown-queue-title">队列长度</div>
+            <div class="drilldown-zoom-controls">
+              <button class="drilldown-zoom-btn" type="button" data-dd-zoom="out">−</button>
+              <button class="drilldown-zoom-btn" type="button" data-dd-zoom="in">＋</button>
+            </div>
+          </div>
+          ${renderReferenceLegend(view.chart.legend)}
+        </div>
+        <div class="drilldown-queue-content">
+          ${renderQueuePortList(view.ports, tabKey)}
+          <div class="drilldown-queue-chart-card">${buildMultiSeriesSvg(view.chart, selectedPorts, { width: expanded ? 900 : 700, height: expanded ? 480 : 420 })}</div>
+          ${expanded ? renderQueueTable(view.expandedTable, false) : renderQueueTable(view.table, tabKey === 'queueDelay')}
+        </div>
+      </div>
+    `;
+  }
+
+  function renderLatencyModal(detail) {
+    if (!detail || !state.drilldown.latencyModalOpen) {
+      refs.drilldownModalLayer.innerHTML = '';
+      return;
+    }
+    const width = 1020;
+    const height = 420;
+    const leftPad = 70;
+    const rightPad = 20;
+    const topPad = 20;
+    const bottomPad = 54;
+    const max = Math.max(...(detail.bars || []), 1);
+    const yTicks = detail.yTicks || [];
+    const yLines = yTicks.map((tick) => {
+      const y = height - bottomPad - ((tick - yTicks[0]) / ((yTicks[yTicks.length - 1] - yTicks[0]) || 1)) * (height - topPad - bottomPad);
+      return `<g><line x1="${leftPad}" y1="${y}" x2="${width - rightPad}" y2="${y}" stroke="rgba(58,124,214,0.55)" stroke-dasharray="6 8" /><text x="${leftPad - 18}" y="${y + 6}" class="drilldown-axis-text" text-anchor="end">${tick}</text></g>`;
+    }).join('');
+    const bars = (detail.bars || []).map((value, index) => {
+      const barWidth = 60;
+      const gap = ((width - leftPad - rightPad) - barWidth * detail.bars.length) / Math.max(detail.bars.length - 1, 1);
+      const x = leftPad + index * (barWidth + gap);
+      const h = ((value - 0) / max) * (height - topPad - bottomPad);
+      const y = height - bottomPad - h;
+      return `
+        <g>
+          <rect x="${x}" y="${y}" width="${barWidth}" height="${h}" rx="30" fill="#2566f0"></rect>
+          <text x="${x + barWidth / 2}" y="${height - 16}" class="drilldown-axis-text" text-anchor="middle">${detail.labels[index]}</text>
+        </g>
+      `;
+    }).join('');
+    refs.drilldownModalLayer.innerHTML = `
+      <div class="drilldown-detail-modal-backdrop">
+        <div class="drilldown-detail-modal">
+          <div class="drilldown-detail-modal-main">
+            <div class="drilldown-detail-modal-head"><h3>${detail.title}</h3><button class="drilldown-detail-close" type="button" data-dd-latency-close>×</button></div>
+            <svg viewBox="0 0 ${width} ${height}" class="drilldown-reference-svg is-modal">
+              ${yLines}
+              ${bars}
+            </svg>
+          </div>
+          <aside class="drilldown-detail-side-card">
+            <div class="drilldown-kpi-title">${detail.cardTitle}</div>
+            <div class="drilldown-kpi-value-row"><span class="drilldown-kpi-value">${detail.value}</span><span class="drilldown-kpi-unit">${detail.unit}</span></div>
+            <div class="drilldown-kpi-foot">正常范围：${detail.normalRange}</div>
+          </aside>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderMultiLineChart(container, trendData, activePort) {
+    if (!container || !trendData) {
+      return;
+    }
+    const { ports = [], series = {}, unit = '' } = trendData;
+    const PORT_COLORS = ['#4f8cff', '#53d3ff', '#ffb545', '#ff6b6b', '#8b5cf6', '#34d399'];
+
+    const activePorts = activePort && ports.includes(activePort) ? [activePort] : ports;
+
+    const getPortValues = (port) => {
+      const entry = series[port];
+      if (!entry) return [];
+      return Array.isArray(entry) ? entry : (entry.values || []);
+    };
+
+    const allValues = activePorts.flatMap((port) => getPortValues(port));
+    if (!allValues.length) {
+      container.innerHTML = '<div class="empty-state">暂无数据</div>';
+      return;
+    }
+
+    const width = 560;
+    const height = 200;
+    const pad = 28;
+    const leftPad = 56;
+    const topPad = 28;
+    const max = Math.max(...allValues, 1);
+    const min = Math.min(...allValues, 0);
+    const range = max - min || 1;
+
+    const toPoint = (values) => values.map((v, i) => {
+      const x = leftPad + (i * (width - leftPad - pad)) / Math.max(values.length - 1, 1);
+      const y = height - pad - ((v - min) / range) * (height - topPad - pad);
+      return `${x},${y}`;
+    });
+
+    const seriesMarkup = activePorts.map((port) => {
+      const vals = getPortValues(port);
+      const color = PORT_COLORS[ports.indexOf(port) % PORT_COLORS.length];
+      const pts = toPoint(vals);
+      return `<polyline points="${pts.join(' ')}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" opacity="0.9" />`;
+    }).join('');
+
+    const legendMarkup = activePorts.map((port) => {
+      const color = PORT_COLORS[ports.indexOf(port) % PORT_COLORS.length];
+      return `<span class="drilldown-chart-legend-item"><span class="drilldown-chart-legend-dot" style="background:${color}"></span>${port}</span>`;
+    }).join('');
+
+    container.innerHTML = `
+      <div class="drilldown-chart-legend">${legendMarkup}</div>
+      <div class="drilldown-multi-chart">
+        <svg viewBox="0 0 ${width} ${height}">
+          <line x1="${leftPad}" y1="${height - pad}" x2="${width - pad}" y2="${height - pad}" stroke="rgba(158,176,207,0.2)" />
+          <line x1="${leftPad}" y1="${topPad}" x2="${leftPad}" y2="${height - pad}" stroke="rgba(158,176,207,0.15)" />
+          <text x="${leftPad - 8}" y="${topPad}" class="chart-label" font-size="10" text-anchor="end">${max}${unit}</text>
+          <text x="${leftPad - 8}" y="${height - pad}" class="chart-label" font-size="10" text-anchor="end">${min}${unit}</text>
+          ${seriesMarkup}
+        </svg>
+      </div>
+    `;
+  }
+
+  function renderPortSelector(container, trendData, tabKey) {
+    if (!trendData || !trendData.ports || trendData.ports.length <= 1) {
+      return;
+    }
+    const activePort = state.drilldown.activePort[tabKey] || null;
+    const selector = document.createElement('div');
+    selector.className = 'drilldown-port-selector';
+    selector.innerHTML = `
+      <button class="drilldown-port-btn ${!activePort ? 'is-active' : ''}" data-dd-port="" data-dd-tab="${tabKey}">全部</button>
+      ${trendData.ports.map((port) => `
+        <button class="drilldown-port-btn ${activePort === port ? 'is-active' : ''}" data-dd-port="${port}" data-dd-tab="${tabKey}">${port}</button>
+      `).join('')}
+    `;
+    container.appendChild(selector);
+  }
+
+  function renderDrilldownTabContent(drillData, tabIndex) {
+    if (!drillData) {
+      refs.drilldownTabPanels.innerHTML = '<div class="empty-state">暂无数据</div>';
+      return;
+    }
+
+    const tab = DRILLDOWN_TABS[tabIndex];
+    const panel = document.createElement('div');
+    panel.className = 'drilldown-tab-panel is-active';
+    closeLatencyModal();
+
+    if (tab.key === 'portDown') {
+      const alarms = drillData.portDownAlarms || [];
+      if (!alarms.length) {
+        panel.innerHTML = '<div class="empty-state">该时间段无端口Down告警</div>';
+      } else {
+        panel.innerHTML = `
+          <table class="drilldown-table">
+            <thead><tr><th>端口</th><th>告警时间</th><th>持续时长</th><th>状态</th></tr></thead>
+            <tbody>
+              ${alarms.map((row) => `
+                <tr>
+                  <td>${row.port}</td>
+                  <td>${row.time}</td>
+                  <td>${row.duration}</td>
+                  <td><span class="drilldown-status-pill ${row.status === '已恢复' ? 'recovered' : 'ongoing'}">${row.status}</span></td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        `;
+      }
+    } else if (tab.key === 'pfc') {
+      panel.innerHTML = renderPfcPanel(drillData);
+    } else if (tab.key === 'queueLength') {
+      panel.innerHTML = renderQueueMainPanel(drillData.queueLengthView, tab.key);
+    } else if (tab.key === 'queueDelay') {
+      panel.innerHTML = renderQueueMainPanel(drillData.queueDelayView, tab.key);
+    }
+
+    refs.drilldownTabPanels.innerHTML = '';
+    refs.drilldownTabPanels.appendChild(panel);
+    if (tab.key === 'queueDelay' && state.drilldown.latencyModalOpen) {
+      renderLatencyModal(drillData.queueDelayView?.detail);
+    }
+  }
+
+  function renderDrilldownTabs(drillData, activeTabIndex) {
+    refs.drilldownTabs.innerHTML = DRILLDOWN_TABS
+      .map((tab, idx) => {
+        let count = 0;
+        if (drillData) {
+          if (tab.key === 'portDown') count = (drillData.portDownAlarms || []).length;
+          else if (tab.key === 'pfc') count = (drillData.pfcTrend?.ports || []).length;
+          else if (tab.key === 'queueLength') count = (drillData.queueLengthTrend?.ports || []).length;
+          else if (tab.key === 'queueDelay') count = (drillData.queueDelayTrend?.ports || []).length;
+        }
+        return `
+          <button class="drilldown-tab ${idx === activeTabIndex ? 'is-active' : ''}" type="button" data-dd-tab-index="${idx}">
+            ${tab.label}
+            ${count > 0 ? `<span class="drilldown-tab-badge">${count}</span>` : ''}
+          </button>
+        `;
+      })
+      .join('');
+  }
+
+  function switchDrilldownSlot(slotIndex) {
+    const flow = state.drilldown.entityKey && state.flow;
+    if (!flow) return;
+
+    const rows = flow.detailView?.orderedRows || [];
+    const row = rows.find((r) => r.entityKey === state.drilldown.entityKey);
+    if (!row) return;
+
+    const cells = row.cells || [];
+    const cell = cells[slotIndex];
+    if (!cell) return;
+
+    state.drilldown.slotIndex = slotIndex;
+    state.drilldown.activeTab = 0;
+    state.drilldown.activePort = {};
+    state.drilldown.queueLengthExpanded = false;
+    state.drilldown.latencyModalOpen = false;
+    state.drilldown.latencyModalRowIndex = null;
+
+    const drillData = getDrillData(flow, cell.slot);
+
+    refs.drilldownSubtitle.textContent = `${cell.slot}`;
+    renderDrilldownTimeNav(cells, slotIndex);
+    renderDrilldownMetrics(drillData);
+    renderDrilldownTabs(drillData, 0);
+    renderDrilldownTabContent(drillData, 0);
+  }
+
+  function openDrilldown(entityKey, rowLabel, cells, slotIndex) {
+    const flow = state.flow;
+    if (!flow) return;
+
+    state.drilldown.open = true;
+    state.drilldown.entityKey = entityKey;
+    state.drilldown.rowLabel = rowLabel;
+    state.drilldown.rowCells = cells;
+    state.drilldown.slotIndex = slotIndex;
+    state.drilldown.activeTab = 0;
+    state.drilldown.activePort = {};
+    state.drilldown.queueLengthExpanded = false;
+    state.drilldown.latencyModalOpen = false;
+    state.drilldown.latencyModalRowIndex = null;
+
+    const cell = cells[slotIndex];
+    const drillData = cell ? getDrillData(flow, cell.slot) : null;
+
+    refs.drilldownTitle.textContent = rowLabel;
+    refs.drilldownSubtitle.textContent = cell ? cell.slot : '';
+    refs.drilldownOverlay.hidden = false;
+    refs.drilldownOverlay.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+
+    renderDrilldownTimeNav(cells, slotIndex);
+    renderDrilldownMetrics(drillData);
+    renderDrilldownTabs(drillData, 0);
+    renderDrilldownTabContent(drillData, 0);
+
+    setTimeout(() => refs.drilldownClose.focus(), 50);
+  }
+
+  function closeDrilldown() {
+    state.drilldown.open = false;
+    refs.drilldownOverlay.hidden = true;
+    refs.drilldownOverlay.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+  }
+
+  function switchDrilldownTab(tabIndex) {
+    const flow = state.flow;
+    if (!flow) return;
+
+    state.drilldown.activeTab = tabIndex;
+    state.drilldown.queueLengthExpanded = false;
+    state.drilldown.latencyModalOpen = false;
+    state.drilldown.latencyModalRowIndex = null;
+
+    const cells = state.drilldown.rowCells || [];
+    const cell = cells[state.drilldown.slotIndex];
+    const drillData = cell ? getDrillData(flow, cell.slot) : null;
+
+    renderDrilldownTabs(drillData, tabIndex);
+    renderDrilldownTabContent(drillData, tabIndex);
   }
 
   function bindEvents() {
@@ -736,6 +1325,81 @@
       }
       navigateToDiagnosis(flow.id);
     });
+
+    refs.alarmList.addEventListener('click', (event) => {
+      const btn = event.target.closest('[data-slot]');
+      if (!btn) return;
+      const flow = getSelectedFlow();
+      if (!flow) return;
+
+      const entityKey = btn.dataset.entityKey;
+      const rowLabel = btn.dataset.rowLabel;
+      const slotIndex = parseInt(btn.dataset.slotIndex, 10);
+
+      const rows = flow.detailView?.orderedRows || [];
+      const row = rows.find((r) => r.entityKey === entityKey);
+      if (!row) return;
+
+      openDrilldown(entityKey, rowLabel, row.cells || [], slotIndex);
+    });
+
+    refs.drilldownOverlay.addEventListener('click', (event) => {
+      if (event.target === refs.drilldownOverlay) closeDrilldown();
+    });
+
+    refs.drilldownClose.addEventListener('click', () => closeDrilldown());
+
+    refs.drilldownTimeTrack.addEventListener('click', (event) => {
+      const btn = event.target.closest('[data-dd-slot-index]');
+      if (!btn) return;
+      switchDrilldownSlot(parseInt(btn.dataset.ddSlotIndex, 10));
+    });
+
+    refs.drilldownTabs.addEventListener('click', (event) => {
+      const btn = event.target.closest('[data-dd-tab-index]');
+      if (!btn) return;
+      switchDrilldownTab(parseInt(btn.dataset.ddTabIndex, 10));
+    });
+
+    refs.drilldownTabPanels.addEventListener('click', (event) => {
+      const btn = event.target.closest('[data-dd-port]');
+      const flow = state.flow;
+      const cells = state.drilldown.rowCells || [];
+      const cell = cells[state.drilldown.slotIndex];
+      const drillData = cell ? getDrillData(flow, cell.slot) : null;
+
+      if (btn) {
+        const tabKey = btn.dataset.ddTab;
+        const port = btn.dataset.ddPort || null;
+        state.drilldown.activePort[tabKey] = port;
+        renderDrilldownTabContent(drillData, state.drilldown.activeTab);
+        return;
+      }
+
+      const zoomBtn = event.target.closest('[data-dd-zoom]');
+      if (zoomBtn && state.drilldown.activeTab === 2) {
+        state.drilldown.queueLengthExpanded = zoomBtn.dataset.ddZoom === 'in';
+        renderDrilldownTabContent(drillData, state.drilldown.activeTab);
+        return;
+      }
+
+      const latencyDetailBtn = event.target.closest('[data-dd-latency-detail]');
+      if (latencyDetailBtn && state.drilldown.activeTab === 3) {
+        state.drilldown.latencyModalOpen = true;
+        state.drilldown.latencyModalRowIndex = Number(latencyDetailBtn.dataset.ddLatencyDetail || 0);
+        renderLatencyModal(drillData.queueDelayView?.detail);
+        return;
+      }
+
+      const closeLatencyBtn = event.target.closest('[data-dd-latency-close]');
+      if (closeLatencyBtn) {
+        closeLatencyModal();
+      }
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && state.drilldown.open) closeDrilldown();
+    });
   }
 
   function init() {
@@ -765,4 +1429,3 @@
 
   init();
 })();
-
