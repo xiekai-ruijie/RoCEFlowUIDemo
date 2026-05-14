@@ -165,7 +165,7 @@
       id: `flow-${flow.id}`,
       name: `AI任务 / ${flow.taskName}`,
       diagnosisType,
-      target: flow.tenant,
+      target: flow.taskName,
       connectivity: flow.status === 'normal' ? '停用' : '启用',
       abnormalCount,
       timeRange: `${formatDateTime(startTimestamp)} ~ ${formatDateTime(endTimestamp)}`,

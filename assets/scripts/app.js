@@ -1,6 +1,5 @@
 (() => {
   const data = window.ROCE_MOCK_DATA;
-  const ALL_TENANTS_VALUE = '全部租户';
   const PRESET_HOURS = { '1h': 1, '4h': 4, '12h': 12, '24h': 24 };
   const DEFAULT_PRESET = PRESET_HOURS[data?.meta?.defaultRange] ? data.meta.defaultRange : '1h';
   const DIAGNOSIS_PAGE_PATH = './fault-diagnosis.html';
@@ -26,13 +25,12 @@
     badgeRangeHint: '单次查询区间 ≤ 7 天',
     lastUpdatedLabel: 'Mock 更新时间',
     queryTitle: '查询过滤区',
-    querySubtitleHint: '支持自定义起止时间、租户与关键五元组联合检索',
+    querySubtitleHint: '支持自定义起止时间与关键五元组联合检索',
     defaultRange: '默认最近 1 小时',
     timeRangeLabel: '时间范围',
     presetRangeLabel: '快捷时间',
     startTime: '开始时间',
     endTime: '结束时间',
-    tenant: '租户',
     srcIp: '源IP',
     srcPort: '源端口',
     dstIp: '目的IP',
@@ -99,11 +97,9 @@
     detailKpi4: '诊断摘要',
     detailPath: '路径',
     detailTask: '任务',
-    detailTenant: '租户',
     viewDetail: '查看详情',
     runDiagnosis: '诊断',
     noData: '当前条件下暂无匹配结果',
-    allTenants: '全部租户',
     topologyLegend: '红色链路表示高风险段',
     alarmCount: '条告警',
     time: '时间',
@@ -154,7 +150,6 @@
   const refs = {
     startTimeFilter: document.getElementById('startTimeFilter'),
     endTimeFilter: document.getElementById('endTimeFilter'),
-    tenantFilter: document.getElementById('tenantFilter'),
     srcIpFilter: document.getElementById('srcIpFilter'),
     srcPortFilter: document.getElementById('srcPortFilter'),
     dstIpFilter: document.getElementById('dstIpFilter'),
@@ -202,10 +197,6 @@
 
   function diagnosisLabel(result) {
     return t(`diag${capitalize(result)}`);
-  }
-
-  function getAllTenantValue() {
-    return data?.meta?.allTenantValue || ALL_TENANTS_VALUE;
   }
 
   function getFlowById(id) {
@@ -292,12 +283,6 @@
     document.querySelectorAll('.info-trigger').forEach((button) => {
       button.setAttribute('aria-label', t('infoTriggerAria'));
     });
-  }
-
-  function initializeTenantOptions() {
-    refs.tenantFilter.innerHTML = data.tenants
-      .map((tenant) => `<option value="${tenant}">${tenant === getAllTenantValue() ? t('allTenants') : tenant}</option>`)
-      .join('');
   }
 
   function applyTimeBounds() {
@@ -396,7 +381,6 @@
       return false;
     }
 
-    const tenant = refs.tenantFilter.value;
     const srcIp = refs.srcIpFilter.value.trim().toLowerCase();
     const srcPort = refs.srcPortFilter.value.trim();
     const dstIp = refs.dstIpFilter.value.trim().toLowerCase();
@@ -407,13 +391,12 @@
         const flowTime = parseTime(flow.lastActive);
         const matchesTime = flowTime >= range.start && flowTime <= range.end;
         const matchesStatus = state.selectedStatus === 'all' || flow.status === state.selectedStatus;
-        const matchesTenant = !tenant || tenant === getAllTenantValue() || flow.tenant === tenant;
         const matchesSrcIp = !srcIp || flow.srcIp.toLowerCase().includes(srcIp);
         const matchesSrcPort = !srcPort || flow.srcPort.includes(srcPort);
         const matchesDstIp = !dstIp || flow.dstIp.toLowerCase().includes(dstIp);
         const matchesDstPort = !dstPort || flow.dstPort.includes(dstPort);
 
-        return matchesTime && matchesStatus && matchesTenant && matchesSrcIp && matchesSrcPort && matchesDstIp && matchesDstPort;
+        return matchesTime && matchesStatus && matchesSrcIp && matchesSrcPort && matchesDstIp && matchesDstPort;
       })
       .sort(compareFlows);
 
@@ -424,7 +407,7 @@
     refs.resultCount.textContent = state.filteredFlows.length;
 
     if (!state.filteredFlows.length) {
-      refs.flowTableBody.innerHTML = `<tr><td colspan="12"><div class="empty-state">${t('noData')}</div></td></tr>`;
+      refs.flowTableBody.innerHTML = `<tr><td colspan="11"><div class="empty-state">${t('noData')}</div></td></tr>`;
       return;
     }
 
@@ -441,7 +424,6 @@
             <td>${flow.jitterText}</td>
             <td>${flow.lossText}</td>
             <td>${renderAlarmSummary(flow)}</td>
-            <td>${flow.tenant}</td>
             <td>${flow.lastActive}</td>
             <td>
               <div class="action-group">
@@ -1141,7 +1123,6 @@
     refs.searchBtn.addEventListener('click', () => refresh());
 
     refs.resetBtn.addEventListener('click', () => {
-      refs.tenantFilter.value = getAllTenantValue();
       refs.srcIpFilter.value = '';
       refs.srcPortFilter.value = '';
       refs.dstIpFilter.value = '';
@@ -1215,8 +1196,6 @@
     }
 
     updateStaticText();
-    initializeTenantOptions();
-    refs.tenantFilter.value = getAllTenantValue();
     applyTimeBounds();
     setRangeByPreset(DEFAULT_PRESET, false);
     bindEvents();

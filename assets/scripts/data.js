@@ -5,7 +5,6 @@ window.ROCE_MOCK_DATA = {
     maxQueryHours: 24,
     defaultRange: '1h'
   },
-  tenants: ['全部租户', '58-AI-Train', 'CN-AI-Lab', 'Edge-Inference', 'Joint-Debug'],
   overallTrends: {
     throughput: { unit: 'Gbps', values: [86, 92, 104, 118, 111, 126, 121], alerts: [5, 6] },
     latency: { unit: 'μs', values: [26, 31, 42, 118, 96, 164, 132], alerts: [3, 5, 6] },
@@ -29,7 +28,7 @@ window.ROCE_MOCK_DATA = {
           { from: 'home-leaf-b', to: 'home-server-b', severity: 'warning' }
         ],
         nodes: [
-          { id: 'home-core', label: 'RoCE 调度平面', sub: '8 个租户 / 426 条活跃流', type: 'switch', status: 'normal', x: 470, y: 96 },
+          { id: 'home-core', label: 'RoCE 调度平面', sub: '426 条活跃流', type: 'switch', status: 'normal', x: 470, y: 96 },
           { id: 'home-spine-a', label: 'Spine-A', sub: '平面 A', type: 'switch', status: 'normal', x: 260, y: 224 },
           { id: 'home-spine-b', label: 'Spine-B', sub: '平面 B', type: 'switch', status: 'warning', x: 680, y: 224 },
           { id: 'home-leaf-a', label: 'Leaf-Train', sub: '训练集群', type: 'switch', status: 'normal', x: 260, y: 392 },
@@ -96,7 +95,6 @@ window.ROCE_MOCK_DATA = {
       lossText: '0',
       status: 'normal',
       alarmSummary: { critical: 0, error: 0, warning: 0 },
-      tenant: '58-AI-Train',
       commId: 'CC-240316-001',
       taskName: 'GPT-Train / AllReduce-A',
       lastActive: '2026-03-16 21:18:42',
@@ -105,8 +103,7 @@ window.ROCE_MOCK_DATA = {
       summary: {
         pathType: '主路径 / 单向流',
         pathId: 'PATH-7A2D-001',
-        packetMode: 'RoCEv2 / IFA',
-        tenant: '58-AI-Train'
+        packetMode: 'RoCEv2 / IFA'
       },
       topology: {
         nodes: [
@@ -140,8 +137,8 @@ window.ROCE_MOCK_DATA = {
         { level: 'normal', object: 'Leaf-1', time: '2026-03-16 20:58', summary: '设备运行正常，无关联告警。', action: '持续观察' }
       ],
       tasksOnLink: [
-        { commId: 'CC-240316-001', task: 'GPT-Train / AllReduce-A', tenant: '58-AI-Train', impact: '低', window: '21:00 - 21:20' },
-        { commId: 'CC-240316-003', task: 'GPT-Train / Checkpoint Sync', tenant: '58-AI-Train', impact: '低', window: '21:05 - 21:18' }
+        { commId: 'CC-240316-001', task: 'GPT-Train / AllReduce-A', impact: '低', window: '21:00 - 21:20' },
+        { commId: 'CC-240316-003', task: 'GPT-Train / Checkpoint Sync', impact: '低', window: '21:05 - 21:18' }
       ],
       actions: [
         '维持当前 IFA 采样策略，继续跟踪高峰期流量变化。',
@@ -170,7 +167,6 @@ window.ROCE_MOCK_DATA = {
       lossText: '124',
       status: 'warning',
       alarmSummary: { critical: 1, error: 2, warning: 3 },
-      tenant: 'CN-AI-Lab',
       commId: 'CC-240316-014',
       taskName: 'MoE-Train / Gradient Sync',
       lastActive: '2026-03-16 18:26:17',
@@ -179,8 +175,7 @@ window.ROCE_MOCK_DATA = {
       summary: {
         pathType: '异常主路径 / 单向流',
         pathId: 'PATH-9F13-224',
-        packetMode: 'RoCEv2 / IFA+MoD',
-        tenant: 'CN-AI-Lab'
+        packetMode: 'RoCEv2 / IFA+MoD'
       },
       topology: {
         nodes: [
@@ -216,9 +211,9 @@ window.ROCE_MOCK_DATA = {
         { level: 'warning', object: 'GPU-Lab-16', time: '2026-03-16 18:15', summary: '目的端网卡 RX queue backlog 增加。', action: '排查主机端中断绑核与拥塞控制参数' }
       ],
       tasksOnLink: [
-        { commId: 'CC-240316-014', task: 'MoE-Train / Gradient Sync', tenant: 'CN-AI-Lab', impact: '高', window: '18:10 - 18:28' },
-        { commId: 'CC-240316-015', task: 'MoE-Train / Optimizer Update', tenant: 'CN-AI-Lab', impact: '中', window: '18:08 - 18:22' },
-        { commId: 'CC-240316-018', task: 'Dataset Shuffle', tenant: 'Joint-Debug', impact: '中', window: '18:09 - 18:16' }
+        { commId: 'CC-240316-014', task: 'MoE-Train / Gradient Sync', impact: '高', window: '18:10 - 18:28' },
+        { commId: 'CC-240316-015', task: 'MoE-Train / Optimizer Update', impact: '中', window: '18:08 - 18:22' },
+        { commId: 'CC-240316-018', task: 'Dataset Shuffle', impact: '中', window: '18:09 - 18:16' }
       ],
       actions: [
         '优先检查 Spine-3 出口队列与 ECN 门限是否先于 PFC 触发。',
@@ -248,7 +243,6 @@ window.ROCE_MOCK_DATA = {
       lossText: '8',
       status: 'warning',
       alarmSummary: { critical: 0, error: 1, warning: 2 },
-      tenant: '58-AI-Train',
       commId: 'CC-240316-027',
       taskName: 'LLM-Train / Tensor Parallel',
       lastActive: '2026-03-16 14:05:08',
@@ -257,8 +251,7 @@ window.ROCE_MOCK_DATA = {
       summary: {
         pathType: '波动路径 / 单向流',
         pathId: 'PATH-5C88-817',
-        packetMode: 'RoCEv2 / IFA',
-        tenant: '58-AI-Train'
+        packetMode: 'RoCEv2 / IFA'
       },
       topology: {
         nodes: [
@@ -293,8 +286,8 @@ window.ROCE_MOCK_DATA = {
         { level: 'warning', object: 'Leaf-11', time: '2026-03-16 14:01', summary: '瞬时 buffer 使用率升高。', action: '继续观察是否扩散至 spine' }
       ],
       tasksOnLink: [
-        { commId: 'CC-240316-027', task: 'LLM-Train / Tensor Parallel', tenant: '58-AI-Train', impact: '中', window: '13:48 - 14:10' },
-        { commId: 'CC-240316-029', task: 'LLM-Train / Pipeline Sync', tenant: '58-AI-Train', impact: '低', window: '13:54 - 14:08' }
+        { commId: 'CC-240316-027', task: 'LLM-Train / Tensor Parallel', impact: '中', window: '13:48 - 14:10' },
+        { commId: 'CC-240316-029', task: 'LLM-Train / Pipeline Sync', impact: '低', window: '13:54 - 14:08' }
       ],
       actions: [
         '核查 ECMP 哈希策略是否导致部分并行路径利用率偏低。',
@@ -323,7 +316,6 @@ window.ROCE_MOCK_DATA = {
       lossText: '381',
       status: 'critical',
       alarmSummary: { critical: 3, error: 4, warning: 2 },
-      tenant: 'Joint-Debug',
       commId: 'CC-240316-041',
       taskName: 'Fault-Replay / Link Regression',
       lastActive: '2026-03-16 10:12:53',
@@ -332,8 +324,7 @@ window.ROCE_MOCK_DATA = {
       summary: {
         pathType: '严重异常路径 / 单向流',
         pathId: 'PATH-E201-991',
-        packetMode: 'RoCEv2 / IFA+MoD',
-        tenant: 'Joint-Debug'
+        packetMode: 'RoCEv2 / IFA+MoD'
       },
       topology: {
         nodes: [
@@ -369,8 +360,8 @@ window.ROCE_MOCK_DATA = {
         { level: 'warning', object: 'Replay-Host-09', time: '2026-03-16 10:04', summary: '训练回放任务发生多次超时重试。', action: '结合业务域日志核查训练中断原因' }
       ],
       tasksOnLink: [
-        { commId: 'CC-240316-041', task: 'Fault-Replay / Link Regression', tenant: 'Joint-Debug', impact: '高', window: '09:50 - 10:10' },
-        { commId: 'CC-240316-043', task: 'Replay / Queue Stress', tenant: 'Joint-Debug', impact: '高', window: '09:56 - 10:12' }
+        { commId: 'CC-240316-041', task: 'Fault-Replay / Link Regression', impact: '高', window: '09:50 - 10:10' },
+        { commId: 'CC-240316-043', task: 'Replay / Queue Stress', impact: '高', window: '09:56 - 10:12' }
       ],
       actions: [
         '立即核查 Leaf-14 ↔ Spine-7 接口模板、PFC/ECN 触发门限与 trust 优先级配置。',
@@ -400,7 +391,6 @@ window.ROCE_MOCK_DATA = {
       lossText: '3',
       status: 'normal',
       alarmSummary: { critical: 0, error: 0, warning: 1 },
-      tenant: 'Edge-Inference',
       commId: 'CC-240316-050',
       taskName: 'Inference / KV Sync',
       lastActive: '2026-03-15 22:20:05',
@@ -409,8 +399,7 @@ window.ROCE_MOCK_DATA = {
       summary: {
         pathType: '边缘推理路径 / 反向流',
         pathId: 'PATH-7E11-211',
-        packetMode: 'RoCEv2 / Flow View',
-        tenant: 'Edge-Inference'
+        packetMode: 'RoCEv2 / Flow View'
       },
       topology: {
         nodes: [
@@ -442,11 +431,10 @@ window.ROCE_MOCK_DATA = {
         { level: 'normal', object: 'Edge Path', time: '2026-03-15 22:00', summary: '当前路径无显著告警。', action: '无需处置' }
       ],
       tasksOnLink: [
-        { commId: 'CC-240316-050', task: 'Inference / KV Sync', tenant: 'Edge-Inference', impact: '低', window: '22:00 - 22:20' }
+        { commId: 'CC-240316-050', task: 'Inference / KV Sync', impact: '低', window: '22:00 - 22:20' }
       ],
       actions: [
-        '保持当前链路策略即可。',
-        '如需进一步优化，可增加同租户跨可用区路径对比。'
+        '保持当前链路策略即可。'
       ],
       diagnosis: [
         { item: '链路健康校验', result: 'pass', progress: 100, desc: '无显著时延 / 丢包异常。', owner: '网络域' },
