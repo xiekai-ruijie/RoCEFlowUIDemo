@@ -3823,3 +3823,76 @@ tbody tr:hover {
   color: #ffffff;
   background: rgba(29, 107, 255, 0.16);
 }
+
+.list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.list-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.status-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.status-tab {
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #c6d6f4;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.status-tab:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.status-tab.active {
+  background: var(--primary);
+  color: #ffffff;
+}
+
+.status-tab.status-tab-favorite.active {
+  background: #ffd448;
+  color: #0b1220;
+}
+
+.favorite-btn {
+  border: none;
+  background: transparent;
+  color: #6b7a9a;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.favorite-btn:hover {
+  color: #ffd448;
+  transform: scale(1.15);
+  background: rgba(255, 212, 72, 0.1);
+}
+
+.favorite-btn.favorited {
+  color: #ffd448;
+}
+
+.favorite-btn.favorited:hover {
+  background: rgba(255, 212, 72, 0.15);
+}

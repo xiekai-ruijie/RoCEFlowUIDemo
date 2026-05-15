@@ -48,6 +48,7 @@
     statusNormal: '正常',
     statusWarning: '告警',
     statusCritical: '严重',
+    statusFavorites: '已关注',
     throughput: '流吞吐',
     latency: '端到端时延',
     jitter: '时延抖动',
@@ -141,10 +142,13 @@
   const referenceTime = parseTime(data?.meta?.lastUpdated) || Date.now();
   const minAllowedTime = referenceTime - MAX_RANGE_MS;
 
+  const FLOW_FAVORITES_KEY = 'roce_flow_favorites';
+  
   const state = {
     selectedPreset: DEFAULT_PRESET,
     selectedStatus: 'all',
-    filteredFlows: []
+    filteredFlows: [],
+    favorites: new Set()
   };
 
   const refs = {
@@ -160,6 +164,7 @@
     flowTableBody: document.getElementById('flowTableBody'),
     resultCount: document.getElementById('resultCount'),
     quickRangeGroup: document.getElementById('quickRangeGroup'),
+    statusTabs: document.getElementById('statusTabs'),
     overallThroughputChart: document.getElementById('overallThroughputChart'),
     overallLatencyChart: document.getElementById('overallLatencyChart'),
     overallJitterChart: document.getElementById('overallJitterChart'),
@@ -181,6 +186,40 @@
     const date = new Date(timestamp);
     const pad = (value) => String(value).padStart(2, '0');
     return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  }
+
+  function loadFavorites() {
+    try {
+      const stored = localStorage.getItem(FLOW_FAVORITES_KEY);
+      if (stored) {
+        const ids = JSON.parse(stored);
+        state.favorites = new Set(ids);
+      }
+    } catch (e) {
+      console.warn('Failed to load favorites:', e);
+    }
+  }
+
+  function saveFavorites() {
+    try {
+      localStorage.setItem(FLOW_FAVORITES_KEY, JSON.stringify(Array.from(state.favorites)));
+    } catch (e) {
+      console.warn('Failed to save favorites:', e);
+    }
+  }
+
+  function isFavorited(flowId) {
+    return state.favorites.has(flowId);
+  }
+
+  function toggleFavorite(flowId) {
+    if (state.favorites.has(flowId)) {
+      state.favorites.delete(flowId);
+    } else {
+      state.favorites.add(flowId);
+    }
+    saveFavorites();
+    return isFavorited(flowId);
   }
 
   function hasItems(list) {
@@ -247,6 +286,13 @@
   }
 
   function compareFlows(left, right) {
+    if (state.selectedStatus === 'all') {
+      const leftFav = isFavorited(left.id) ? 0 : 1;
+      const rightFav = isFavorited(right.id) ? 0 : 1;
+      if (leftFav !== rightFav) {
+        return leftFav - rightFav;
+      }
+    }
     const priorityGap = (STATUS_PRIORITY[left.status] ?? 99) - (STATUS_PRIORITY[right.status] ?? 99);
     if (priorityGap !== 0) {
       return priorityGap;
@@ -298,6 +344,12 @@
   function syncRangeButtons() {
     document.querySelectorAll('[data-range]').forEach((button) => {
       button.classList.toggle('active', button.dataset.range === state.selectedPreset);
+    });
+  }
+
+  function updateStatusTabs() {
+    document.querySelectorAll('[data-status]').forEach((button) => {
+      button.classList.toggle('active', button.dataset.status === state.selectedStatus);
     });
   }
 
@@ -375,6 +427,13 @@
   }
 
   function applyFilters() {
+    if (state.selectedStatus === 'favorites') {
+      state.filteredFlows = data.flows
+        .filter((flow) => isFavorited(flow.id))
+        .sort(compareFlows);
+      return true;
+    }
+
     const range = validateTimeRange();
     if (!range) {
       state.filteredFlows = [];
@@ -413,7 +472,9 @@
 
     refs.flowTableBody.innerHTML = state.filteredFlows
       .map(
-        (flow) => `
+        (flow) => {
+          const favorited = isFavorited(flow.id);
+          return `
           <tr>
             <td>${flow.srcIp}</td>
             <td>${flow.srcPort}</td>
@@ -427,12 +488,16 @@
             <td>${flow.lastActive}</td>
             <td>
               <div class="action-group">
+                <button class="favorite-btn ${favorited ? 'favorited' : ''}" data-toggle-favorite="${flow.id}" aria-label="${favorited ? '取消关注' : '关注'}">
+                  ${favorited ? '★' : '☆'}
+                </button>
                 <button class="action-link" data-open-detail="${flow.id}">${t('viewDetail')}</button>
                 <button class="action-link" data-run-diagnosis="${flow.id}">${t('runDiagnosis')}</button>
               </div>
             </td>
           </tr>
-        `
+        `;
+        }
       )
       .join('');
   }
@@ -1139,6 +1204,16 @@
       setRangeByPreset(button.dataset.range, true);
     });
 
+    refs.statusTabs.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-status]');
+      if (!button) {
+        return;
+      }
+      state.selectedStatus = button.dataset.status;
+      updateStatusTabs();
+      refresh();
+    });
+
     [refs.startTimeFilter, refs.endTimeFilter].forEach((element) => {
       element.addEventListener('input', () => {
         state.selectedPreset = null;
@@ -1150,6 +1225,12 @@
     refs.flowTableBody.addEventListener('click', (event) => {
       const detailButton = event.target.closest('[data-open-detail]');
       const diagnosisButton = event.target.closest('[data-run-diagnosis]');
+      const favoriteButton = event.target.closest('[data-toggle-favorite]');
+      if (favoriteButton) {
+        const flowId = favoriteButton.dataset.toggleFavorite;
+        toggleFavorite(flowId);
+        refresh();
+      }
       if (detailButton) {
         navigateToFlowDetail(detailButton.dataset.openDetail);
       }
@@ -1195,9 +1276,11 @@
       return;
     }
 
+    loadFavorites();
     updateStaticText();
     applyTimeBounds();
     setRangeByPreset(DEFAULT_PRESET, false);
+    updateStatusTabs();
     bindEvents();
     refresh();
   }

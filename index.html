@@ -175,6 +175,13 @@
             <p><span id="resultCount">0</span> <span data-i18n="listCountSuffix">条流路径结果</span></p>
           </div>
           <div class="list-actions">
+            <div class="status-tabs" id="statusTabs">
+              <button class="status-tab active" data-status="all" data-i18n="statusAll">全部</button>
+              <button class="status-tab" data-status="normal" data-i18n="statusNormal">正常</button>
+              <button class="status-tab" data-status="warning" data-i18n="statusWarning">告警</button>
+              <button class="status-tab" data-status="critical" data-i18n="statusCritical">严重</button>
+              <button class="status-tab status-tab-favorite" data-status="favorites" data-i18n="statusFavorites">已关注</button>
+            </div>
             <div class="alarm-legend" aria-label="告警等级说明">
               <span class="alarm-legend-item"><span class="alarm-legend-dot critical"></span><span data-i18n="alarmCriticalLabel">严重</span></span>
               <span class="alarm-legend-item"><span class="alarm-legend-dot error"></span><span data-i18n="alarmErrorLabel">错误</span></span>
