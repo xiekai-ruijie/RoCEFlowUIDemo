@@ -147,6 +147,7 @@
       normalCount,
       timeRange: taskConfig.timeRange,
       startTime: taskConfig.startTime,
+      flowId: taskConfig.flowId || null,
       graph: taskConfig.graph || createGraph({ diagnosisType: taskConfig.diagnosisType, abnormalCount })
     };
   }
@@ -169,7 +170,8 @@
       connectivity: flow.status === 'normal' ? '停用' : '启用',
       abnormalCount,
       timeRange: `${formatDateTime(startTimestamp)} ~ ${formatDateTime(endTimestamp)}`,
-      startTime: formatDateTime(endTimestamp - 90 * 1000)
+      startTime: formatDateTime(endTimestamp - 90 * 1000),
+      flowId: flow.id
     });
   }
 
@@ -296,6 +298,7 @@
             <div class="diagnosis-summary-actions">
               <button class="btn btn-primary" type="button" data-summary-action="rerun">重新检测</button>
               <button class="btn btn-secondary" type="button" data-summary-action="history">检测历史</button>
+              ${task.flowId ? `<a class="btn btn-secondary" href="./flow-detail.html?flowId=${escapeHtml(task.flowId)}">查看关联流路径</a>` : ''}
             </div>
           </div>
         </div>
@@ -434,6 +437,7 @@
 
     // Validate Flow Selection
     let flowDetails = '';
+    let selectedFlowId = null;
     if (target === '流路径') {
       const selectedFlow = document.querySelector('input[name="selectedFlowTarget"]:checked');
       if (!selectedFlow) {
@@ -441,18 +445,20 @@
         return;
       }
       flowDetails = ` - ${selectedFlow.value}`;
+      selectedFlowId = selectedFlow.dataset.flowId || null;
     }
 
     const abnormalCount = getDerivedAbnormalCount(diagnosisType);
     const task = createTask({
       id: `custom-task-${Date.now()}`,
-      name: name + flowDetails, // Append flow key to name for clarity
+      name: name + flowDetails,
       diagnosisType,
       target,
       connectivity: refs.connectivityToggleInput.checked ? '启用' : '停用',
       abnormalCount,
       timeRange: `${formatDateTime(start)} ~ ${formatDateTime(end)}`,
-      startTime: formatDateTime(Math.max(start, end - 4 * 60 * 1000))
+      startTime: formatDateTime(Math.max(start, end - 4 * 60 * 1000)),
+      flowId: selectedFlowId
     });
 
     state.tasks.unshift(task);
@@ -565,6 +571,16 @@
     const params = new URLSearchParams(window.location.search);
     const flowId = params.get('flowId');
     const action = params.get('action');
+    const srcIp = params.get('srcIp');
+    const dstIp = params.get('dstIp');
+
+    // Update breadcrumb with back-link if coming from a flow
+    if (flowId) {
+      const breadcrumb = document.querySelector('.workspace-breadcrumb');
+      if (breadcrumb) {
+        breadcrumb.innerHTML = `<a href="index.html" style="color:#8ea6ca;text-decoration:none;">分析保障</a> / <a href="index.html" style="color:#8ea6ca;text-decoration:none;">RoCE业务分析</a> / <a href="flow-detail.html?flowId=${flowId}" style="color:#78a7ff;text-decoration:none;">流路径详情</a> / 故障一键诊断`;
+      }
+    }
 
     // Default init logic
     state.tasks = createDefaultTasks(null); // Load without specific flow task first

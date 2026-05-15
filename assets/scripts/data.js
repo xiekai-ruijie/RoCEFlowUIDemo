@@ -942,6 +942,9 @@ window.ROCE_MOCK_DATA = {
   }
 
   data.flows.forEach((flow) => {
+    if (!flow.pathSource) {
+      flow.pathSource = 'AILB';
+    }
     if (!flow.direction) {
       flow.direction = flow.srcPort === '4791' ? 'reverse' : 'forward';
     }

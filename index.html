@@ -114,6 +114,16 @@
         </div>
       </section>
 
+      <section class="panel datasource-hint-panel" id="datasourceHintPanel">
+        <div class="datasource-hint" id="datasourceHint">
+          <span class="datasource-hint-icon">ℹ️</span>
+          <span class="datasource-hint-text" id="datasourceHintText">当前数据源：AILB 规划路径推算 — 输入源IP和目的IP即可查询路径</span>
+          <div class="datasource-hint-actions">
+            <button class="btn btn-sm btn-secondary" id="manageWatchedBtn" type="button">管理关注流</button>
+          </div>
+        </div>
+      </section>
+
       <section class="panel overall-trend-panel">
         <div class="panel-header">
           <div>
@@ -172,7 +182,7 @@
         <div class="panel-header list-header">
           <div>
             <h2 data-i18n="listTitle">RoCE流路径列表</h2>
-            <p><span id="resultCount">0</span> <span data-i18n="listCountSuffix">条流路径结果</span></p>
+            <p><span id="resultCount">0</span> <span data-i18n="listCountSuffix">条路径查询结果</span></p>
           </div>
           <div class="list-actions">
             <div class="status-tabs" id="statusTabs">
@@ -204,6 +214,7 @@
                 <th data-i18n="loss">丢包数</th>
                 <th data-i18n="alarmColumn">告警</th>
                 <th data-i18n="lastActive">最近活跃</th>
+                <th data-i18n="pathSource">路径来源</th>
                 <th data-i18n="actions">操作</th>
               </tr>
             </thead>

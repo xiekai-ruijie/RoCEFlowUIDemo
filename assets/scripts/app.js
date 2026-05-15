@@ -43,7 +43,7 @@
     overallTrendSubtitle: '汇总展示当前范围内流相关的吞吐、时延、抖动、丢包、PFC、ECN 指标趋势。',
     overallTrendBadge: '筛选结果趋势总览',
     listTitle: 'RoCE流路径列表',
-    listCountSuffix: '条流路径结果',
+    listCountSuffix: '条路径查询结果',
     statusAll: '全部',
     statusNormal: '正常',
     statusWarning: '告警',
@@ -136,7 +136,17 @@
     validationRequired: '请选择完整的开始时间和结束时间。',
     validationOrder: '结束时间不能早于开始时间。',
     validationSevenDays: '查询时间跨度不能超过 7 天。',
-    validationWindow: '查询时间需落在最近 7 天内，且不能晚于最新样本时间。'
+    validationWindow: '查询时间需落在最近 7 天内，且不能晚于最新样本时间。',
+    pathSourceAILB: '推算路径',
+    pathSourceFlowTracker: '观测路径',
+    datasourceAILB: '当前数据源：AILB 规划路径推算 — 输入源IP和目的IP即可查询路径',
+    datasourceFlowTracker: '当前数据源：FlowTracker 实时流表 — 可直接浏览活跃流列表，或输入条件筛选',
+    datasourceMixed: '当前数据源：FlowTracker 实时流表 + AILB 规划路径（优先匹配观测数据，无匹配时自动推算）',
+    pathSource: '路径来源',
+    manageWatched: '管理关注流',
+    noDataAILB: '请输入源IP和目的IP查询路径',
+    pathNodeListTitle: '路径节点',
+    deviceAlarmHeatmap: '路径设备告警热力图'
   };
 
   const referenceTime = parseTime(data?.meta?.lastUpdated) || Date.now();
@@ -148,7 +158,8 @@
     selectedPreset: DEFAULT_PRESET,
     selectedStatus: 'all',
     filteredFlows: [],
-    favorites: new Set()
+    favorites: new Set(),
+    dataSourceMode: 'AILB'  // 'AILB' | 'FLOW_TRACKER' | 'MIXED'
   };
 
   const refs = {
@@ -466,26 +477,32 @@
     refs.resultCount.textContent = state.filteredFlows.length;
 
     if (!state.filteredFlows.length) {
-      refs.flowTableBody.innerHTML = `<tr><td colspan="11"><div class="empty-state">${t('noData')}</div></td></tr>`;
+      refs.flowTableBody.innerHTML = `<tr><td colspan="12"><div class="empty-state">${state.dataSourceMode === 'AILB' ? t('noDataAILB') : t('noData')}</div></td></tr>`;
       return;
     }
+
+    const isAILB = state.dataSourceMode === 'AILB';
 
     refs.flowTableBody.innerHTML = state.filteredFlows
       .map(
         (flow) => {
           const favorited = isFavorited(flow.id);
+          const pathSourceLabel = (flow.pathSource === 'FLOW_TRACKER') ? t('pathSourceFlowTracker') : t('pathSourceAILB');
+          const pathSourceClass = (flow.pathSource === 'FLOW_TRACKER') ? 'badge-source-ft' : 'badge-source-ailb';
+          const showMetrics = flow.pathSource === 'FLOW_TRACKER';
           return `
           <tr>
             <td>${flow.srcIp}</td>
             <td>${flow.srcPort}</td>
             <td>${flow.dstIp}</td>
             <td>${flow.dstPort}</td>
-            <td>${flow.throughputText}</td>
-            <td>${flow.latencyText}</td>
-            <td>${flow.jitterText}</td>
-            <td>${flow.lossText}</td>
+            <td>${showMetrics ? flow.throughputText : '<span class="metric-na">—</span>'}</td>
+            <td>${showMetrics ? flow.latencyText : '<span class="metric-na">—</span>'}</td>
+            <td>${showMetrics ? flow.jitterText : '<span class="metric-na">—</span>'}</td>
+            <td>${showMetrics ? flow.lossText : '<span class="metric-na">—</span>'}</td>
             <td>${renderAlarmSummary(flow)}</td>
-            <td>${flow.lastActive}</td>
+            <td>${showMetrics ? flow.lastActive : '<span class="metric-na">—</span>'}</td>
+            <td><span class="badge-path-source ${pathSourceClass}">${pathSourceLabel}</span></td>
             <td>
               <div class="action-group">
                 <button class="favorite-btn ${favorited ? 'favorited' : ''}" data-toggle-favorite="${flow.id}" aria-label="${favorited ? '取消关注' : '关注'}">
@@ -527,10 +544,15 @@
   }
 
   function navigateToDiagnosis(flowId) {
+    const flow = getFlowById(flowId);
     const url = new URL(DIAGNOSIS_PAGE_PATH, window.location.href);
     if (flowId) {
       url.searchParams.set('action', 'new_task');
       url.searchParams.set('flowId', flowId);
+    }
+    if (flow) {
+      url.searchParams.set('srcIp', flow.srcIp);
+      url.searchParams.set('dstIp', flow.dstIp);
     }
     window.location.href = url.toString();
   }
@@ -1271,6 +1293,28 @@
     });
   }
 
+  function updateDatasourceHint() {
+    const hintText = document.getElementById('datasourceHintText');
+    if (!hintText) return;
+    if (state.dataSourceMode === 'FLOW_TRACKER') {
+      hintText.textContent = t('datasourceFlowTracker');
+    } else if (state.dataSourceMode === 'MIXED') {
+      hintText.textContent = t('datasourceMixed');
+    } else {
+      hintText.textContent = t('datasourceAILB');
+    }
+
+    // Update overall trend badge for AILB mode
+    const trendBadge = document.querySelector('.overall-trend-panel .badge');
+    if (trendBadge && state.dataSourceMode === 'AILB') {
+      trendBadge.textContent = '需 FlowTracker 数据 · 当前展示设备级聚合';
+      trendBadge.classList.add('badge-ailb-hint');
+    } else if (trendBadge) {
+      trendBadge.textContent = t('overallTrendBadge');
+      trendBadge.classList.remove('badge-ailb-hint');
+    }
+  }
+
   function init() {
     if (!validateRuntime()) {
       return;
@@ -1281,8 +1325,16 @@
     applyTimeBounds();
     setRangeByPreset(DEFAULT_PRESET, false);
     updateStatusTabs();
+    updateDatasourceHint();
     bindEvents();
     refresh();
+
+    const manageWatchedBtn = document.getElementById('manageWatchedBtn');
+    if (manageWatchedBtn) {
+      manageWatchedBtn.addEventListener('click', () => {
+        alert('关注流管理功能（新增/编辑/删除/批量导入）将在后续迭代中实现。');
+      });
+    }
   }
 
   init();

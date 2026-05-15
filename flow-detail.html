@@ -64,6 +64,7 @@
         <div class="panel-header flow-detail-hero-header">
           <div>
             <h1 id="detailTitle">流路径详情</h1>
+            <span class="badge-path-source badge-source-ailb" id="detailPathSourceBadge">推算路径</span>
           </div>
           <div class="flow-detail-actions">
             <a class="btn btn-secondary" href="index.html">返回列表</a>
@@ -76,7 +77,7 @@
       <section class="flow-detail-top-grid">
         <aside class="panel flow-detail-side-panel">
           <div class="card-header-row card-header-row-tight">
-            <h2>匹配流的设备</h2>
+            <h2>路径节点</h2>
             <div class="flow-detail-side-actions">
               <span class="muted" id="matchedDeviceCount"></span>
               <button class="btn btn-secondary btn-sm" id="clearSelectionBtn" type="button">显示全部</button>
@@ -140,8 +141,8 @@
           <section class="flow-detail-alarm-column">
             <div class="panel-header flow-detail-heatmap-header">
               <div>
-                <h2>告警热力图</h2>
-                <p class="muted" id="heatmapScopeHint">热力图按源服务器→设备→设备端口→目的服务器顺序展示</p>
+                <h2>路径设备告警热力图</h2>
+                <p class="muted" id="heatmapScopeHint">热力图按源服务器→设备→设备端口→目的服务器顺序展示路径设备告警</p>
               </div>
               <div class="heatmap-legend" aria-label="热力图等级说明">
                 <span class="heatmap-legend-item"><span class="heatmap-legend-dot normal"></span><span>正常</span></span>

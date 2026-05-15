@@ -133,9 +133,14 @@
   }
 
   function navigateToDiagnosis(flowId) {
+    const flow = getFlowById(flowId);
     const url = new URL(DIAGNOSIS_PAGE_PATH, window.location.href);
     url.searchParams.set('action', 'new_task');
     url.searchParams.set('flowId', flowId);
+    if (flow) {
+      url.searchParams.set('srcIp', flow.srcIp);
+      url.searchParams.set('dstIp', flow.dstIp);
+    }
     window.location.href = url.toString();
   }
 
@@ -263,6 +268,9 @@
                       <strong>${detail.egress.bytes}</strong>
                     </div>
                   </button>
+                  <div class="matched-device-quick-actions">
+                    <button class="btn btn-sm btn-secondary device-drilldown-btn" type="button" data-device-drilldown="${node.id}" title="直接下钻分析">🔍 下钻</button>
+                  </div>
                 </div>
               </div>
             `;
@@ -689,9 +697,15 @@
 
   function updateSelectionCopy(flow) {
     const label = getSelectionLabel(flow, state.selectedEntityKey);
+    const isAILB = flow.pathSource !== 'FLOW_TRACKER';
+    const sourceHint = isAILB ? '（设备级指标，非流级）' : '';
     refs.selectionStatusChip.textContent = `当前展示：${label}`;
-    refs.trendScopeHint.textContent = state.selectedEntityKey === 'all' ? '未选择设备/接口时展示当前流全体趋势' : `当前仅展示 ${label} 相关指标趋势`;
-    refs.heatmapScopeHint.textContent = state.selectedEntityKey === 'all' ? '热力图按源服务器→设备→设备端口→目的服务器顺序展示' : `当前高亮 ${label} 相关告警热力图`;
+    refs.trendScopeHint.textContent = state.selectedEntityKey === 'all'
+      ? `未选择设备/接口时展示当前流全体趋势${sourceHint}`
+      : `当前仅展示 ${label} 相关指标趋势${sourceHint}`;
+    refs.heatmapScopeHint.textContent = state.selectedEntityKey === 'all'
+      ? (isAILB ? '路径设备告警热力图 — 全路径视角' : '热力图按源服务器→设备→设备端口→目的服务器顺序展示')
+      : `路径设备告警热力图 — ${label} 视角`;
   }
 
   function updateSelection(selectionKey, options = {}) {
@@ -1235,8 +1249,9 @@
     const cell = cells[slotIndex];
     const drillData = cell ? getDrillData(flow, cell.slot) : null;
 
-    refs.drilldownTitle.textContent = rowLabel;
-    refs.drilldownSubtitle.textContent = cell ? cell.slot : '';
+    refs.drilldownTitle.textContent = `${rowLabel} · ${cell ? cell.slot : ''} 下钻分析`;
+    const isAILB = state.flow?.pathSource !== 'FLOW_TRACKER';
+    refs.drilldownSubtitle.textContent = cell ? `时间段: ${cell.slot}${isAILB ? ' · 数据来源：设备级指标' : ''}` : '';
     refs.drilldownOverlay.hidden = false;
     refs.drilldownOverlay.setAttribute('aria-hidden', 'false');
     document.body.style.overflow = 'hidden';
@@ -1277,8 +1292,22 @@
     refs.matchedDeviceList.addEventListener('click', (event) => {
       const toggle = event.target.closest('[data-device-toggle]');
       const interfaceButton = event.target.closest('[data-interface-select]');
+      const drilldownBtn = event.target.closest('[data-device-drilldown]');
       const flow = getSelectedFlow();
       if (!flow) {
+        return;
+      }
+
+      if (drilldownBtn) {
+        const deviceId = drilldownBtn.dataset.deviceDrilldown;
+        const node = getNodeById(flow, deviceId);
+        if (!node) return;
+        const entityKey = `node:${deviceId}`;
+        const rows = flow.detailView?.orderedRows || [];
+        const row = rows.find((r) => r.entityKey === entityKey);
+        if (row && row.cells && row.cells.length) {
+          openDrilldown(entityKey, node.label, row.cells, 0);
+        }
         return;
       }
 
@@ -1417,6 +1446,13 @@
 
     state.flow = flow;
     refs.detailTitle.textContent = `流路径详情 · ${flow.summary?.pathId || flow.id}`;
+
+    const pathSourceBadge = document.getElementById('detailPathSourceBadge');
+    if (pathSourceBadge) {
+      const isFlowTracker = flow.pathSource === 'FLOW_TRACKER';
+      pathSourceBadge.textContent = isFlowTracker ? '观测路径' : '推算路径';
+      pathSourceBadge.className = `badge-path-source ${isFlowTracker ? 'badge-source-ft' : 'badge-source-ailb'}`;
+    }
 
     renderFlowSnapshot(flow);
     renderMatchedDevices(flow);
