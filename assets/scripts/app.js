@@ -39,9 +39,9 @@
     reset: '重置',
     roceHintLabel: 'RoCEv2 检索说明',
     roceHint: 'RoCEv2 目的端口固定为 UDP 4791，支持按异常流路径快速定位。',
-    overallTrendTitle: '整体指标趋势',
-    overallTrendSubtitle: '汇总展示当前范围内流相关的吞吐、时延、抖动、丢包、PFC、ECN 指标趋势。',
-    overallTrendBadge: '筛选结果趋势总览',
+    overallTrendTitle: '异常流 Top5',
+    overallTrendSubtitle: '按流维度展示当前查询结果中的高风险流。',
+    overallTrendBadge: '流级排序',
     listTitle: 'RoCE流路径列表',
     listCountSuffix: '条路径查询结果',
     statusAll: '全部',
@@ -145,6 +145,10 @@
     pathSource: '路径来源',
     manageWatched: '管理关注流',
     noDataAILB: '请输入源IP和目的IP查询路径',
+    pfcMetric: 'PFC',
+    ecnMetric: 'ECN',
+    nakMetric: 'NAK',
+    cnpMetric: 'CNP',
     pathNodeListTitle: '路径节点',
     deviceAlarmHeatmap: '路径设备告警热力图'
   };
@@ -176,12 +180,9 @@
     resultCount: document.getElementById('resultCount'),
     quickRangeGroup: document.getElementById('quickRangeGroup'),
     statusTabs: document.getElementById('statusTabs'),
-    overallThroughputChart: document.getElementById('overallThroughputChart'),
-    overallLatencyChart: document.getElementById('overallLatencyChart'),
-    overallJitterChart: document.getElementById('overallJitterChart'),
-    overallLossChart: document.getElementById('overallLossChart'),
-    overallPfcChart: document.getElementById('overallPfcChart'),
-    overallEcnChart: document.getElementById('overallEcnChart')
+    topLatencyFlows: document.getElementById('topLatencyFlows'),
+    topJitterFlows: document.getElementById('topJitterFlows'),
+    topLossFlows: document.getElementById('topLossFlows')
   };
 
   function t(key) {
@@ -477,11 +478,9 @@
     refs.resultCount.textContent = state.filteredFlows.length;
 
     if (!state.filteredFlows.length) {
-      refs.flowTableBody.innerHTML = `<tr><td colspan="12"><div class="empty-state">${state.dataSourceMode === 'AILB' ? t('noDataAILB') : t('noData')}</div></td></tr>`;
+      refs.flowTableBody.innerHTML = `<tr><td colspan="16"><div class="empty-state">${state.dataSourceMode === 'AILB' ? t('noDataAILB') : t('noData')}</div></td></tr>`;
       return;
     }
-
-    const isAILB = state.dataSourceMode === 'AILB';
 
     refs.flowTableBody.innerHTML = state.filteredFlows
       .map(
@@ -489,19 +488,23 @@
           const favorited = isFavorited(flow.id);
           const pathSourceLabel = (flow.pathSource === 'FLOW_TRACKER') ? t('pathSourceFlowTracker') : t('pathSourceAILB');
           const pathSourceClass = (flow.pathSource === 'FLOW_TRACKER') ? 'badge-source-ft' : 'badge-source-ailb';
-          const showMetrics = flow.pathSource === 'FLOW_TRACKER';
+          const roceMetrics = getRoceFlowMetrics(flow);
           return `
           <tr>
             <td>${flow.srcIp}</td>
             <td>${flow.srcPort}</td>
             <td>${flow.dstIp}</td>
             <td>${flow.dstPort}</td>
-            <td>${showMetrics ? flow.throughputText : '<span class="metric-na">—</span>'}</td>
-            <td>${showMetrics ? flow.latencyText : '<span class="metric-na">—</span>'}</td>
-            <td>${showMetrics ? flow.jitterText : '<span class="metric-na">—</span>'}</td>
-            <td>${showMetrics ? flow.lossText : '<span class="metric-na">—</span>'}</td>
+            <td>${flow.throughputText}</td>
+            <td>${flow.latencyText}</td>
+            <td>${flow.jitterText}</td>
+            <td>${flow.lossText}</td>
+            <td>${roceMetrics.pfc}</td>
+            <td>${roceMetrics.ecn}</td>
+            <td>${roceMetrics.nak}</td>
+            <td>${roceMetrics.cnp}</td>
             <td>${renderAlarmSummary(flow)}</td>
-            <td>${showMetrics ? flow.lastActive : '<span class="metric-na">—</span>'}</td>
+            <td>${flow.lastActive}</td>
             <td><span class="badge-path-source ${pathSourceClass}">${pathSourceLabel}</span></td>
             <td>
               <div class="action-group">
@@ -517,6 +520,50 @@
         }
       )
       .join('');
+  }
+
+  function getTrendMax(flow, key) {
+    const values = flow.trends?.[key]?.values || [];
+    return values.length ? Math.max(...values) : 0;
+  }
+
+  function getRoceFlowMetrics(flow) {
+    const pfc = Math.round(getTrendMax(flow, 'pfc'));
+    const ecn = Number(getTrendMax(flow, 'ecn')).toFixed(1);
+    const nak = Math.max(0, Math.round(Number(flow.loss || 0) * (flow.status === 'critical' ? 0.42 : flow.status === 'warning' ? 0.18 : 0.03)));
+    const cnp = Math.max(0, Math.round(getTrendMax(flow, 'ecn') * (flow.status === 'critical' ? 220 : flow.status === 'warning' ? 120 : 18)));
+    return {
+      pfc: `${pfc} fps`,
+      ecn: `${ecn}%`,
+      nak: `${nak}`,
+      cnp: `${cnp}`
+    };
+  }
+
+  function renderTopList(container, flows, metricKey, formatter) {
+    if (!container) return;
+    if (!flows.length) {
+      container.innerHTML = `<div class="empty-state">${t('noData')}</div>`;
+      return;
+    }
+    container.innerHTML = `
+      <div class="flow-top5-list">
+        ${flows.map((flow, index) => `
+          <button class="flow-top5-item" type="button" data-open-detail="${flow.id}">
+            <span class="flow-top5-rank">${index + 1}</span>
+            <span class="flow-top5-main"><strong>${flow.srcIp} → ${flow.dstIp}</strong><em>${flow.taskName || flow.commId}</em></span>
+            <span class="flow-top5-value">${formatter(flow[metricKey], flow)}</span>
+          </button>
+        `).join('')}
+      </div>
+    `;
+  }
+
+  function renderFlowTop5() {
+    const flows = state.filteredFlows.slice();
+    renderTopList(refs.topLatencyFlows, flows.sort((a, b) => Number(b.latency || 0) - Number(a.latency || 0)).slice(0, 5), 'latency', (value) => `${value} μs`);
+    renderTopList(refs.topJitterFlows, flows.slice().sort((a, b) => Number(b.jitter || 0) - Number(a.jitter || 0)).slice(0, 5), 'jitter', (value) => `${value} μs`);
+    renderTopList(refs.topLossFlows, flows.slice().sort((a, b) => Number(b.loss || 0) - Number(a.loss || 0)).slice(0, 5), 'loss', (value) => `${value} pkt`);
   }
 
   function renderAlarmSummary(flow) {
@@ -1202,7 +1249,7 @@
 
   function refresh() {
     applyFilters();
-    renderOverallTrends();
+    renderFlowTop5();
     renderTable();
   }
 
@@ -1261,6 +1308,15 @@
       }
     });
 
+    [refs.topLatencyFlows, refs.topJitterFlows, refs.topLossFlows].forEach((container) => {
+      container?.addEventListener('click', (event) => {
+        const detailButton = event.target.closest('[data-open-detail]');
+        if (detailButton) {
+          navigateToFlowDetail(detailButton.dataset.openDetail);
+        }
+      });
+    });
+
     document.addEventListener('click', (event) => {
       const trigger = event.target.closest('.info-trigger');
       if (trigger) {
@@ -1304,14 +1360,9 @@
       hintText.textContent = t('datasourceAILB');
     }
 
-    // Update overall trend badge for AILB mode
-    const trendBadge = document.querySelector('.overall-trend-panel .badge');
-    if (trendBadge && state.dataSourceMode === 'AILB') {
-      trendBadge.textContent = '需 FlowTracker 数据 · 当前展示设备级聚合';
-      trendBadge.classList.add('badge-ailb-hint');
-    } else if (trendBadge) {
-      trendBadge.textContent = t('overallTrendBadge');
-      trendBadge.classList.remove('badge-ailb-hint');
+    const top5Badge = document.querySelector('.flow-top5-panel .badge');
+    if (top5Badge) {
+      top5Badge.textContent = '流级排序 · 非端口/设备聚合';
     }
   }
 

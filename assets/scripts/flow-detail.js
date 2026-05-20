@@ -14,10 +14,12 @@
     layout: document.getElementById('flowDetailLayout'),
     detailTitle: document.getElementById('detailTitle'),
     flowSnapshotCard: document.getElementById('flowSnapshotCard'),
+    pathVariantSwitcher: document.getElementById('pathVariantSwitcher'),
     matchedDeviceCount: document.getElementById('matchedDeviceCount'),
     matchedDeviceList: document.getElementById('matchedDeviceList'),
     topologyContainer: document.getElementById('topologyContainer'),
     topologyViewHint: document.getElementById('topologyViewHint'),
+    topologySourceIndicator: document.getElementById('topologySourceIndicator'),
     selectionStatusChip: document.getElementById('selectionStatusChip'),
     trendScopeHint: document.getElementById('trendScopeHint'),
     heatmapScopeHint: document.getElementById('heatmapScopeHint'),
@@ -45,6 +47,7 @@
 
   const state = {
     flow: null,
+    currentPathVariant: 'ailb',
     selectedEntityKey: 'all',
     expandedDeviceIds: [],
     topologyMode: 'default',
@@ -57,6 +60,7 @@
       slotIndex: null,
       activeTab: 0,
       activePort: {},
+      activeBucket: {},
       queueLengthExpanded: false,
       latencyModalOpen: false,
       latencyModalRowIndex: null
@@ -77,7 +81,101 @@
   }
 
   function getSelectedFlow() {
-    return state.flow;
+    if (!state.flow) {
+      return null;
+    }
+    return state.flow.pathVariants?.[state.currentPathVariant] || state.flow;
+  }
+
+  function getAvailablePathVariants(flow) {
+    return flow?.pathVariants ? Object.keys(flow.pathVariants) : ['ailb'];
+  }
+
+  function getPathVariantMeta(variantKey) {
+    if (variantKey === 'fallback') {
+      return {
+        label: 'Fallback ECMP备选路径',
+        shortLabel: 'Fallback',
+        badgeClass: 'badge-source-fallback',
+        chipClass: 'is-fallback',
+        indicatorClass: 'is-fallback'
+      };
+    }
+    return {
+      label: 'AILB推算路径',
+      shortLabel: 'AILB',
+      badgeClass: 'badge-source-ailb',
+      chipClass: 'is-ailb',
+      indicatorClass: 'is-ailb'
+    };
+  }
+
+  function ensureSelectionValid(flow) {
+    if (!flow?.detailView?.entityLabels) {
+      state.selectedEntityKey = 'all';
+      state.focusedDeviceId = null;
+      state.topologyMode = 'default';
+      return;
+    }
+    if (state.selectedEntityKey !== 'all' && !flow.detailView.entityLabels[state.selectedEntityKey]) {
+      state.selectedEntityKey = 'all';
+      state.focusedDeviceId = null;
+      state.topologyMode = 'default';
+    }
+  }
+
+  function renderPathVariantSwitcher() {
+    if (!refs.pathVariantSwitcher || !state.flow) {
+      return;
+    }
+    const variants = getAvailablePathVariants(state.flow);
+    refs.pathVariantSwitcher.innerHTML = variants
+      .map((variantKey) => {
+        const meta = getPathVariantMeta(variantKey);
+        return `<button class="path-variant-btn ${state.currentPathVariant === variantKey ? 'is-active' : ''} ${meta.chipClass}" type="button" data-path-variant="${variantKey}">${meta.label}</button>`;
+      })
+      .join('');
+    refs.pathVariantSwitcher.classList.toggle('is-single', variants.length <= 1);
+  }
+
+  function updatePathSourceBadge(flow) {
+    const pathSourceBadge = document.getElementById('detailPathSourceBadge');
+    if (!pathSourceBadge || !flow) {
+      return;
+    }
+    const meta = getPathVariantMeta(state.currentPathVariant);
+    pathSourceBadge.textContent = meta.label;
+    pathSourceBadge.className = `badge-path-source ${meta.badgeClass}`;
+    if (refs.topologySourceIndicator) {
+      refs.topologySourceIndicator.textContent = `当前路径：${meta.label}`;
+      refs.topologySourceIndicator.className = `topology-source-indicator ${meta.indicatorClass}`;
+    }
+  }
+
+  function refreshView() {
+    const flow = getSelectedFlow();
+    if (!flow) {
+      return;
+    }
+    ensureSelectionValid(flow);
+    refs.detailTitle.textContent = `流路径详情 · ${flow.summary?.pathId || flow.id}`;
+    renderPathVariantSwitcher();
+    updatePathSourceBadge(flow);
+    renderFlowSnapshot(flow);
+    renderMatchedDevices(flow);
+    renderTopology(flow);
+    renderCharts(flow);
+    renderHeatmap(flow);
+    updateSelectionCopy(flow);
+    syncDrilldownWithCurrentFlow();
+  }
+
+  function switchPathVariant(variantKey) {
+    if (!state.flow?.pathVariants?.[variantKey] || state.currentPathVariant === variantKey) {
+      return;
+    }
+    state.currentPathVariant = variantKey;
+    refreshView();
   }
 
   function getNodeById(flow, id) {
@@ -325,7 +423,7 @@
     return positions;
   }
 
-  function renderTopologyGraph({ width, height, nodes, links, positions, legendText }) {
+  function renderTopologyGraph({ width, height, nodes, links, positions, legendText, pathVariant = 'ailb' }) {
     const linkMarkup = links
       .map((link) => {
         const start = positions[link.from];
@@ -339,7 +437,7 @@
           : `M ${start.x} ${start.y} C ${start.x} ${(start.y + end.y) / 2}, ${end.x} ${(start.y + end.y) / 2}, ${end.x} ${end.y}`;
         const midX = (start.x + end.x) / 2;
         const midY = (start.y + end.y) / 2 - (isVertical ? 12 : 22);
-        const linkClasses = [`link-${link.severity || 'normal'}`];
+        const linkClasses = [`link-${link.severity || 'normal'}`, `path-variant-${link.pathVariant || pathVariant}`];
         if (link.muted) {
           linkClasses.push('is-muted');
         }
@@ -363,7 +461,7 @@
         const baseClass = node.type === 'server' ? 'node-server' : 'node-switch';
         const badgeText = node.role === 'source' || point.role === 'source' ? '源' : node.role === 'destination' || point.role === 'destination' ? '目的' : '';
         const icon = node.type === 'server' ? '▭' : '◫';
-        const classes = ['topology-node', statusClass];
+        const classes = ['topology-node', statusClass, `path-variant-${node.pathVariant || pathVariant}`];
         if (node.muted) {
           classes.push('is-muted');
         }
@@ -383,7 +481,7 @@
       .join('');
 
     return `
-      <svg viewBox="0 0 ${width} ${height}" class="topology-svg" role="img" aria-label="RoCE流路径拓扑图">
+      <svg viewBox="0 0 ${width} ${height}" class="topology-svg topology-svg-${pathVariant}" role="img" aria-label="RoCE流路径拓扑图">
         <text x="26" y="30" class="chart-label" font-size="12">${legendText}</text>
         ${linkMarkup}
         ${nodeMarkup}
@@ -519,7 +617,8 @@
       nodes: flow.topology.nodes,
       links: flow.topology.links,
       positions,
-      legendText: '红色链路表示高风险段'
+      legendText: '红色链路表示高风险段',
+      pathVariant: flow.variantKey || state.currentPathVariant
     });
   }
 
@@ -531,17 +630,21 @@
       nodes: topology.nodes,
       links: topology.links,
       positions: topology.positions,
-      legendText: '当前展示拓扑上下文中的主路径'
+      legendText: '当前展示拓扑上下文中的主路径',
+      pathVariant: flow.variantKey || state.currentPathVariant
     });
   }
 
   function updateTopologyHint(flow) {
     let hintText = '当前展示主路径概览';
+    const meta = getPathVariantMeta(flow?.variantKey || state.currentPathVariant);
     if (state.topologyMode === 'path') {
-      hintText = `当前展示拓扑上下文中的主路径 · ${flow.srcIp} → ${flow.dstIp}`;
+      hintText = `当前展示${meta.shortLabel}路径上下文 · ${flow.srcIp} → ${flow.dstIp}`;
     } else if (state.topologyMode === 'device' && state.focusedDeviceId) {
       const node = getNodeById(flow, state.focusedDeviceId);
-      hintText = `当前展示设备接口相关流量 · ${node?.label || state.focusedDeviceId}`;
+      hintText = `当前展示${meta.shortLabel}路径设备接口相关流量 · ${node?.label || state.focusedDeviceId}`;
+    } else {
+      hintText = `当前展示${meta.shortLabel}路径主拓扑概览`;
     }
     refs.topologyViewHint.textContent = hintText;
     refs.viewInTopologyBtn.classList.toggle('is-active', state.topologyMode === 'path');
@@ -639,7 +742,7 @@
     }
 
     refs.alarmList.innerHTML = `
-      <div class="heatmap-board heatmap-board-ordered" style="${slotStyle}">
+      <div class="heatmap-board heatmap-board-ordered heatmap-board-${flow.variantKey || state.currentPathVariant}" style="${slotStyle}">
         <div class="heatmap-board-header">
           <div class="heatmap-board-date">
             <span>观测日期</span>
@@ -697,15 +800,17 @@
 
   function updateSelectionCopy(flow) {
     const label = getSelectionLabel(flow, state.selectedEntityKey);
-    const isAILB = flow.pathSource !== 'FLOW_TRACKER';
+    const variantMeta = getPathVariantMeta(flow?.variantKey || state.currentPathVariant);
+    const isAILB = (flow.variantKey || state.currentPathVariant) === 'ailb';
     const sourceHint = isAILB ? '（设备级指标，非流级）' : '';
-    refs.selectionStatusChip.textContent = `当前展示：${label}`;
+    refs.selectionStatusChip.textContent = `当前展示：${variantMeta.shortLabel}路径 · ${label}`;
+    refs.selectionStatusChip.className = `selection-status-chip ${variantMeta.chipClass}`;
     refs.trendScopeHint.textContent = state.selectedEntityKey === 'all'
-      ? `未选择设备/接口时展示当前流全体趋势${sourceHint}`
-      : `当前仅展示 ${label} 相关指标趋势${sourceHint}`;
+      ? `未选择设备/接口时展示${variantMeta.label}全路径趋势${sourceHint}`
+      : `当前仅展示 ${variantMeta.label}下 ${label} 相关指标趋势${sourceHint}`;
     refs.heatmapScopeHint.textContent = state.selectedEntityKey === 'all'
-      ? (isAILB ? '路径设备告警热力图 — 全路径视角' : '热力图按源服务器→设备→设备端口→目的服务器顺序展示')
-      : `路径设备告警热力图 — ${label} 视角`;
+      ? `路径设备告警热力图 — ${variantMeta.shortLabel}全路径视角`
+      : `路径设备告警热力图 — ${variantMeta.shortLabel} / ${label} 视角`;
   }
 
   function updateSelection(selectionKey, options = {}) {
@@ -727,13 +832,14 @@
     renderCharts(flow);
     renderHeatmap(flow);
     updateSelectionCopy(flow);
+    syncDrilldownWithCurrentFlow();
   }
 
   const DRILLDOWN_TABS = [
     { key: 'portDown', label: '端口异常Down' },
     { key: 'pfc', label: 'PFC告警' },
     { key: 'queueLength', label: '队列长度超限' },
-    { key: 'queueDelay', label: '队列延迟' }
+    { key: 'queueDelay', label: '队列时延超限' }
   ];
 
   const DRILLDOWN_METRICS_CONFIG = [
@@ -891,7 +997,14 @@
     const bottomPad = 44;
     const labels = chart.labels || [];
     const ports = selectedPorts?.length ? selectedPorts : Object.keys(chart.series || {});
-    const allValues = ports.flatMap((port) => chart.series?.[port] || []);
+    const getSeriesValues = (port) => {
+      const entry = chart.series?.[port];
+      if (Array.isArray(entry)) {
+        return entry;
+      }
+      return entry?.values || [];
+    };
+    const allValues = ports.flatMap((port) => getSeriesValues(port));
     const max = Math.max(...allValues, 1);
     const min = Math.min(...allValues, 0);
     const range = max - min || 1;
@@ -907,7 +1020,7 @@
       `;
     }).join('');
     const paths = ports.map((port, portIndex) => {
-      const values = chart.series?.[port] || [];
+      const values = getSeriesValues(port);
       const points = values.map((value, index) => {
         const x = leftPad + (index * (width - leftPad - rightPad)) / Math.max(values.length - 1, 1);
         const y = height - bottomPad - ((value - min) / range) * (height - topPad - bottomPad);
@@ -1004,6 +1117,213 @@
           <div class="drilldown-queue-chart-card">${buildMultiSeriesSvg(view.chart, selectedPorts, { width: expanded ? 900 : 700, height: expanded ? 480 : 420 })}</div>
           ${expanded ? renderQueueTable(view.expandedTable, false) : renderQueueTable(view.table, tabKey === 'queueDelay')}
         </div>
+      </div>
+    `;
+  }
+
+  function getPreferredDrillPort(view, tabKey) {
+    const activePort = state.drilldown.activePort[tabKey] || null;
+    if (activePort) {
+      return activePort;
+    }
+    const defaultPort = (view?.ports || []).find((item) => item.active)?.port;
+    return defaultPort || view?.records?.[0]?.port || null;
+  }
+
+  function getQueueDelayBucketState(bar, selectedBucketIndex) {
+    const classes = ['queue-delay-bucket'];
+    if (bar.overThreshold) {
+      classes.push('is-over-threshold');
+    }
+    if (selectedBucketIndex === bar.index) {
+      classes.push('is-active');
+    }
+    return classes.join(' ');
+  }
+
+  function renderQueueDelayTags(view) {
+    return `
+      <div class="queue-delay-tags">
+        ${(view?.tags || []).map((tag) => `<span class="queue-delay-tag tone-${tag.tone || 'neutral'}">${tag.label}</span>`).join('')}
+      </div>
+    `;
+  }
+
+  function renderQueueDelayHistogram(view, distribution) {
+    if (!distribution) {
+      return '<div class="empty-state">暂无 LDH 队列分布数据</div>';
+    }
+    const selectedBucketIndex = state.drilldown.activeBucket.queueDelay;
+    const maxCount = Math.max(...distribution.bars.map((bar) => bar.count), 1);
+    return `
+      <div class="queue-delay-histogram-card drilldown-reference-card">
+        <div class="queue-delay-histogram-header">
+          <div>
+            <div class="drilldown-reference-card-title">LDH 时延分布</div>
+            <div class="queue-delay-histogram-meta">阈值：>${view.thresholdUs}μs · 近似 P99：${distribution.p99BucketLabel} · 主导桶：${distribution.dominantBucketLabel}</div>
+          </div>
+          <button class="queue-delay-reset-btn ${selectedBucketIndex == null ? 'is-active' : ''}" type="button" data-dd-bucket-index="">全部桶</button>
+        </div>
+        <div class="queue-delay-bucket-grid">
+          ${distribution.bars.map((bar) => `
+            <button
+              class="${getQueueDelayBucketState(bar, selectedBucketIndex)}"
+              type="button"
+              data-dd-bucket-index="${bar.index}"
+              title="${bar.label} · ${bar.countLabel} 报文 · ${bar.ratio}%"
+            >
+              <span class="queue-delay-bucket-ratio">${bar.ratio}%</span>
+              <span class="queue-delay-bucket-bar-shell"><span class="queue-delay-bucket-bar" style="height:${Math.max(10, (bar.count / maxCount) * 100)}%"></span></span>
+              <span class="queue-delay-bucket-label">${bar.label}</span>
+              <span class="queue-delay-bucket-count">${bar.countLabel}</span>
+            </button>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  function getQueueDelaySeverityClass(level) {
+    return level === 'critical' ? 'critical' : level === 'error' ? 'error' : level === 'warning' ? 'warning' : 'normal';
+  }
+
+  function getQueueDelaySeverityLabel(level) {
+    return level === 'critical' ? '严重' : level === 'error' ? '错误' : level === 'warning' ? '警告' : '正常';
+  }
+
+  function renderQueueDelayInsightCards(view, record) {
+    const distribution = record?.distribution;
+    if (!record || !distribution) {
+      return '';
+    }
+    const selectedBucketIndex = state.drilldown.activeBucket.queueDelay;
+    const selectedBucket = selectedBucketIndex != null ? distribution.bars[selectedBucketIndex] : null;
+    return `
+      <div class="queue-delay-insight-grid">
+        <div class="queue-delay-insight-card is-highlight">
+          <div class="queue-delay-insight-label">当前聚焦端口</div>
+          <div class="queue-delay-insight-value">${record.port}</div>
+          <div class="queue-delay-insight-foot">${record.queueGroup} · ${record.monitorType}</div>
+        </div>
+        <div class="queue-delay-insight-card ${record.severity === 'critical' ? 'is-danger' : ''}">
+          <div class="queue-delay-insight-label">高时延占比</div>
+          <div class="queue-delay-insight-value">${record.exceedRatio}%</div>
+          <div class="queue-delay-insight-foot">>${view.thresholdUs}μs 报文 ${record.exceedPackets.toLocaleString()}</div>
+        </div>
+        <div class="queue-delay-insight-card">
+          <div class="queue-delay-insight-label">最大活跃桶</div>
+          <div class="queue-delay-insight-value">${record.maxBucket}</div>
+          <div class="queue-delay-insight-foot">最长持续 ${record.longestBurstSec}s</div>
+        </div>
+        <div class="queue-delay-insight-card ${selectedBucket ? 'is-selected' : ''}">
+          <div class="queue-delay-insight-label">桶区间聚焦</div>
+          <div class="queue-delay-insight-value">${selectedBucket ? selectedBucket.label : '全部桶'}</div>
+          <div class="queue-delay-insight-foot">${selectedBucket ? `${selectedBucket.countLabel} / ${selectedBucket.ratio}%` : '点击柱体筛选端口明细'}</div>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderQueueDelayRecords(view, selectedPort) {
+    const selectedBucketIndex = state.drilldown.activeBucket.queueDelay;
+    const rows = (view?.records || []).filter((record) => !selectedPort || record.port === selectedPort || selectedBucketIndex == null);
+    return `
+      <div class="drilldown-table-card queue-delay-record-card">
+        <div class="drilldown-table-card-title">端口 / 队列超限明细</div>
+        <table class="drilldown-reference-table queue-delay-record-table">
+          <thead>
+            <tr>
+              <th>端口</th>
+              <th>队列组</th>
+              <th>高时延占比</th>
+              <th>${selectedBucketIndex == null ? '近似P99' : '当前桶占比'}</th>
+              <th>最大活跃桶</th>
+              <th>持续时长</th>
+              <th>状态</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows.map((record) => {
+              const selectedBucket = selectedBucketIndex == null ? null : record.distribution?.bars?.[selectedBucketIndex];
+              return `
+                <tr class="${selectedPort === record.port ? 'is-focused' : ''}">
+                  <td><strong>${record.port}</strong></td>
+                  <td>${record.queueGroup}</td>
+                  <td>${record.exceedRatio}%</td>
+                  <td>${selectedBucket ? `${selectedBucket.ratio}%` : record.p99Bucket}</td>
+                  <td>${record.maxBucket}</td>
+                  <td>${record.longestBurstSec}s</td>
+                  <td><span class="queue-delay-status-pill ${getQueueDelaySeverityClass(record.severity)}">${getQueueDelaySeverityLabel(record.severity)}</span></td>
+                </tr>
+              `;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  function renderQueueDelaySummary(view, record) {
+    const bullets = view?.insights?.bullets || [];
+    const recommendations = view?.insights?.recommendations || [];
+    return `
+      <div class="queue-delay-summary-card">
+        <div class="queue-delay-summary-head">
+          <div>
+            <div class="queue-delay-summary-title">分析摘要</div>
+            <p class="queue-delay-summary-desc">${view?.insights?.headline || '当前时间片内存在明显的队列长尾时延抬升。'}</p>
+          </div>
+          ${record ? `<span class="queue-delay-status-pill ${getQueueDelaySeverityClass(record.severity)}">${getQueueDelaySeverityLabel(record.severity)}</span>` : ''}
+        </div>
+        <ul class="queue-delay-summary-list">
+          ${bullets.map((item) => `<li>${item}</li>`).join('')}
+        </ul>
+        <div class="queue-delay-summary-actions">
+          ${recommendations.map((item) => `<span class="queue-delay-action-chip">${item}</span>`).join('')}
+        </div>
+      </div>
+    `;
+  }
+
+  function renderQueueDelayPanel(view) {
+    const selectedPort = getPreferredDrillPort(view, 'queueDelay');
+    const distribution = selectedPort ? view?.distributions?.[selectedPort] : null;
+    const trendPorts = selectedPort ? [selectedPort] : (view?.ports || []).filter((item) => item.active).slice(0, 5).map((item) => item.port);
+    const record = (view?.records || []).find((item) => item.port === selectedPort) || view?.records?.[0] || null;
+
+    return `
+      <div class="queue-delay-layout drilldown-reference-layout">
+        <section class="queue-delay-hero">
+          <div>
+            <div class="queue-delay-title-row">
+              <div class="drilldown-queue-title">${view?.title || '队列时延超限'}</div>
+              ${renderQueueDelayTags(view)}
+            </div>
+            <p class="queue-delay-desc">${view?.description || ''}</p>
+          </div>
+          ${renderQueueDelayInsightCards(view, record)}
+        </section>
+
+        <section class="queue-delay-main-grid">
+          ${renderQueuePortList(view?.ports, 'queueDelay')}
+          <div class="queue-delay-main-content">
+            ${renderQueueDelayHistogram(view, distribution)}
+            <div class="queue-delay-chart-grid">
+              <div class="drilldown-queue-chart-card is-standalone">
+                <div class="drilldown-reference-card-title">超限占比趋势</div>
+                ${buildMultiSeriesSvg(view?.exceedTrend, trendPorts, { width: 760, height: 360 })}
+              </div>
+              <div class="drilldown-queue-chart-card is-standalone">
+                <div class="drilldown-reference-card-title">队列时延趋势</div>
+                ${buildMultiSeriesSvg(view?.queueDelayTrend, trendPorts, { width: 760, height: 360 })}
+              </div>
+            </div>
+          </div>
+          <div class="queue-delay-side-column">
+            ${renderQueueDelaySummary(view, record)}
+            ${renderQueueDelayRecords(view, selectedPort)}
+          </div>
+        </section>
       </div>
     `;
   }
@@ -1173,7 +1493,7 @@
     } else if (tab.key === 'queueLength') {
       panel.innerHTML = renderQueueMainPanel(drillData.queueLengthView, tab.key);
     } else if (tab.key === 'queueDelay') {
-      panel.innerHTML = renderQueueMainPanel(drillData.queueDelayView, tab.key);
+      panel.innerHTML = renderQueueDelayPanel(drillData.queueDelayView);
     }
 
     refs.drilldownTabPanels.innerHTML = '';
@@ -1191,7 +1511,7 @@
           if (tab.key === 'portDown') count = (drillData.portDownAlarms || []).length;
           else if (tab.key === 'pfc') count = (drillData.pfcTrend?.ports || []).length;
           else if (tab.key === 'queueLength') count = (drillData.queueLengthTrend?.ports || []).length;
-          else if (tab.key === 'queueDelay') count = (drillData.queueDelayTrend?.ports || []).length;
+          else if (tab.key === 'queueDelay') count = (drillData.queueDelayView?.records || []).length;
         }
         return `
           <button class="drilldown-tab ${idx === activeTabIndex ? 'is-active' : ''}" type="button" data-dd-tab-index="${idx}">
@@ -1218,6 +1538,7 @@
     state.drilldown.slotIndex = slotIndex;
     state.drilldown.activeTab = 0;
     state.drilldown.activePort = {};
+    state.drilldown.activeBucket = {};
     state.drilldown.queueLengthExpanded = false;
     state.drilldown.latencyModalOpen = false;
     state.drilldown.latencyModalRowIndex = null;
@@ -1242,6 +1563,7 @@
     state.drilldown.slotIndex = slotIndex;
     state.drilldown.activeTab = 0;
     state.drilldown.activePort = {};
+    state.drilldown.activeBucket = {};
     state.drilldown.queueLengthExpanded = false;
     state.drilldown.latencyModalOpen = false;
     state.drilldown.latencyModalRowIndex = null;
@@ -1249,9 +1571,10 @@
     const cell = cells[slotIndex];
     const drillData = cell ? getDrillData(flow, cell.slot) : null;
 
-    refs.drilldownTitle.textContent = `${rowLabel} · ${cell ? cell.slot : ''} 下钻分析`;
-    const isAILB = state.flow?.pathSource !== 'FLOW_TRACKER';
-    refs.drilldownSubtitle.textContent = cell ? `时间段: ${cell.slot}${isAILB ? ' · 数据来源：设备级指标' : ''}` : '';
+    const variantMeta = getPathVariantMeta(flow?.variantKey || state.currentPathVariant);
+    refs.drilldownTitle.textContent = `${variantMeta.shortLabel} · ${rowLabel} · ${cell ? cell.slot : ''} 下钻分析`;
+    const isAILB = (flow.variantKey || state.currentPathVariant) === 'ailb';
+    refs.drilldownSubtitle.textContent = cell ? `时间段: ${cell.slot} · 路径来源：${variantMeta.label}${isAILB ? ' · 数据来源：设备级指标' : ''}` : '';
     refs.drilldownOverlay.hidden = false;
     refs.drilldownOverlay.setAttribute('aria-hidden', 'false');
     document.body.style.overflow = 'hidden';
@@ -1271,12 +1594,44 @@
     document.body.style.overflow = '';
   }
 
+  function syncDrilldownWithCurrentFlow() {
+    if (!state.drilldown.open) {
+      return;
+    }
+    const flow = getSelectedFlow();
+    if (!flow) {
+      closeDrilldown();
+      return;
+    }
+    const rows = flow.detailView?.orderedRows || [];
+    const row = rows.find((item) => item.entityKey === state.drilldown.entityKey) || rows[0];
+    if (!row || !row.cells?.length) {
+      closeDrilldown();
+      return;
+    }
+    const slotIndex = Math.min(state.drilldown.slotIndex || 0, row.cells.length - 1);
+    state.drilldown.rowLabel = row.label;
+    state.drilldown.rowCells = row.cells;
+    state.drilldown.slotIndex = slotIndex;
+    const cell = row.cells[slotIndex];
+    const drillData = cell ? getDrillData(flow, cell.slot) : null;
+    const variantMeta = getPathVariantMeta(flow?.variantKey || state.currentPathVariant);
+    const isAILB = (flow.variantKey || state.currentPathVariant) === 'ailb';
+    refs.drilldownTitle.textContent = `${variantMeta.shortLabel} · ${row.label} · ${cell ? cell.slot : ''} 下钻分析`;
+    refs.drilldownSubtitle.textContent = cell ? `时间段: ${cell.slot} · 路径来源：${variantMeta.label}${isAILB ? ' · 数据来源：设备级指标' : ''}` : '';
+    renderDrilldownTimeNav(row.cells, slotIndex);
+    renderDrilldownMetrics(drillData);
+    renderDrilldownTabs(drillData, state.drilldown.activeTab);
+    renderDrilldownTabContent(drillData, state.drilldown.activeTab);
+  }
+
   function switchDrilldownTab(tabIndex) {
     const flow = state.flow;
     if (!flow) return;
 
     state.drilldown.activeTab = tabIndex;
     state.drilldown.queueLengthExpanded = false;
+    state.drilldown.activeBucket = {};
     state.drilldown.latencyModalOpen = false;
     state.drilldown.latencyModalRowIndex = null;
 
@@ -1355,6 +1710,14 @@
       navigateToDiagnosis(flow.id);
     });
 
+    refs.pathVariantSwitcher?.addEventListener('click', (event) => {
+      const btn = event.target.closest('[data-path-variant]');
+      if (!btn) {
+        return;
+      }
+      switchPathVariant(btn.dataset.pathVariant);
+    });
+
     refs.alarmList.addEventListener('click', (event) => {
       const btn = event.target.closest('[data-slot]');
       if (!btn) return;
@@ -1405,6 +1768,14 @@
         return;
       }
 
+      const bucketBtn = event.target.closest('[data-dd-bucket-index]');
+      if (bucketBtn && state.drilldown.activeTab === 3) {
+        const bucketValue = bucketBtn.dataset.ddBucketIndex;
+        state.drilldown.activeBucket.queueDelay = bucketValue === '' ? null : Number(bucketValue);
+        renderDrilldownTabContent(drillData, state.drilldown.activeTab);
+        return;
+      }
+
       const zoomBtn = event.target.closest('[data-dd-zoom]');
       if (zoomBtn && state.drilldown.activeTab === 2) {
         state.drilldown.queueLengthExpanded = zoomBtn.dataset.ddZoom === 'in';
@@ -1445,21 +1816,8 @@
     }
 
     state.flow = flow;
-    refs.detailTitle.textContent = `流路径详情 · ${flow.summary?.pathId || flow.id}`;
-
-    const pathSourceBadge = document.getElementById('detailPathSourceBadge');
-    if (pathSourceBadge) {
-      const isFlowTracker = flow.pathSource === 'FLOW_TRACKER';
-      pathSourceBadge.textContent = isFlowTracker ? '观测路径' : '推算路径';
-      pathSourceBadge.className = `badge-path-source ${isFlowTracker ? 'badge-source-ft' : 'badge-source-ailb'}`;
-    }
-
-    renderFlowSnapshot(flow);
-    renderMatchedDevices(flow);
-    renderTopology(flow);
-    renderCharts(flow);
-    renderHeatmap(flow);
-    updateSelectionCopy(flow);
+    state.currentPathVariant = 'ailb';
+    refreshView();
     bindEvents();
   }
 

@@ -835,30 +835,161 @@ window.ROCE_MOCK_DATA = {
     };
   }
 
-  function buildLatencyTable() {
+  function formatPacketCount(value) {
+    if (value >= 10000) {
+      return `${(value / 1000).toFixed(1)}k`;
+    }
+    return String(value);
+  }
+
+  function getLatencyBucketLabels() {
+    return ['0-5μs', '5-10μs', '10-20μs', '20-50μs', '50-100μs', '100-200μs', '200-500μs', '>500μs'];
+  }
+
+  function buildLatencyDistribution(slotIndex, portIndex) {
+    const base = 3200 + slotIndex * 40 + portIndex * 120;
+    const values = [
+      base - 540,
+      base - 260,
+      base + 120,
+      base + 520,
+      base + 980,
+      base + 680 + portIndex * 90,
+      960 + slotIndex * 32 + portIndex * 56,
+      220 + ((slotIndex + portIndex) % 4) * 44
+    ].map((value) => Math.max(80, Math.round(value)));
+    const labels = getLatencyBucketLabels();
+    const total = values.reduce((sum, value) => sum + value, 0);
+    const dominantIndex = values.indexOf(Math.max(...values));
+    const exceedThresholdIndex = 5;
+    const exceedPackets = values.slice(exceedThresholdIndex).reduce((sum, value) => sum + value, 0);
+    const exceedRatio = Number(((exceedPackets / total) * 100).toFixed(1));
+    const cumulativeTarget = total * 0.99;
+    let cumulative = 0;
+    let p99Index = values.length - 1;
+    values.some((value, index) => {
+      cumulative += value;
+      if (cumulative >= cumulativeTarget) {
+        p99Index = index;
+        return true;
+      }
+      return false;
+    });
     return {
-      title: '数据统计 06:08:12 – 06:09:12',
-      columns: ['端口ID', '时间', '高时延报文数', '高时延占比', '操作'],
-      rows: [
-        ['GiO/1', '4:27:23', '12312', '0.32%', '查看详情'],
-        ['GiO/1', '4:27:23', '12312', '0.42%', '查看详情'],
-        ['GiO/1', '4:27:23', '12312', '0.35%', '查看详情']
-      ],
-      pageCount: 1,
-      page: 1
+      labels,
+      values,
+      total,
+      exceedThresholdIndex,
+      exceedPackets,
+      exceedRatio,
+      dominantBucketIndex: dominantIndex,
+      dominantBucketLabel: labels[dominantIndex],
+      p99BucketIndex: p99Index,
+      p99BucketLabel: labels[p99Index],
+      maxBucketLabel: labels[Math.max(p99Index, values.length - 2)],
+      bars: values.map((count, index) => ({
+        index,
+        label: labels[index],
+        count,
+        countLabel: formatPacketCount(count),
+        ratio: Number(((count / total) * 100).toFixed(1)),
+        overThreshold: index >= exceedThresholdIndex
+      }))
     };
   }
 
-  function buildLatencyDetail() {
+  function buildQueueDelayExceedTrend(slotIndex) {
     return {
-      title: '时延区间报文',
-      cardTitle: '时延数据',
-      value: 156,
-      unit: 'μs',
-      normalRange: '< 10',
-      bars: [4400, 5100, 4550, 4080, 3380, 2360, 2210],
-      labels: ['1', '2', '3', '4', '5', '6', '7'],
-      yTicks: [1000, 2000, 3000, 4000, 5000, 6000]
+      labels: Array.from({ length: 12 }, (_, index) => `06:${String(index * 5).padStart(2, '0')}`),
+      legend: [
+        { port: 'GiO/1', color: '#1d6bff' },
+        { port: 'GiO/2', color: '#ff8b14' },
+        { port: 'GiO/3', color: '#ffed57' },
+        { port: 'GiO/4', color: '#12d3a7' },
+        { port: 'GiO/5', color: '#ff5a1f' }
+      ],
+      series: {
+        'GiO/1': buildSmoothSeries(18 + slotIndex * 0.5, 12, slotIndex, { amplitude: 3.8, spike: { start: 5, end: 7, height: 14, decay: 5 } }),
+        'GiO/2': buildSmoothSeries(12 + slotIndex * 0.35, 12, slotIndex + 1, { amplitude: 3.2, spike: { start: 5, end: 7, height: 9, decay: 4.5 } }),
+        'GiO/3': buildSmoothSeries(8 + slotIndex * 0.22, 12, slotIndex + 2, { amplitude: 2.6, spike: { start: 6, end: 8, height: 6, decay: 3.8 } }),
+        'GiO/4': buildSmoothSeries(6 + slotIndex * 0.18, 12, slotIndex + 3, { amplitude: 2.2 }),
+        'GiO/5': buildSmoothSeries(9 + slotIndex * 0.16, 12, slotIndex + 4, { amplitude: 2.4, spike: { start: 4, end: 6, height: 5, decay: 2.8 } })
+      },
+      highlightRange: { start: 5, end: 7, label: '当前时延超限窗口' },
+      referenceLine: { index: 6 },
+      tooltip: {
+        title: '高时延占比',
+        time: '06:30',
+        values: [
+          { port: 'GiO/1', value: '24.8%' },
+          { port: 'GiO/2', value: '18.4%' },
+          { port: 'GiO/3', value: '11.2%' },
+          { port: 'GiO/4', value: '7.3%' },
+          { port: 'GiO/5', value: '9.6%' }
+        ]
+      }
+    };
+  }
+
+  function buildQueueDelayRecords(slotIndex) {
+    const portDefs = [
+      { port: 'GiO/1', queueGroup: 'RDMA上行Q3', monitorType: '上行RDMA', severity: 'critical' },
+      { port: 'GiO/2', queueGroup: 'RDMA上行Q4', monitorType: '上行RDMA', severity: 'error' },
+      { port: 'GiO/3', queueGroup: '协议下行Q1', monitorType: '下行协议', severity: 'warning' },
+      { port: 'GiO/4', queueGroup: 'RDMA下行Q2', monitorType: '下行RDMA', severity: 'warning' },
+      { port: 'GiO/5', queueGroup: '协议上行Q0', monitorType: '上行协议', severity: 'normal' }
+    ];
+    return portDefs.map((item, index) => {
+      const distribution = buildLatencyDistribution(slotIndex + index, index);
+      const longestBurstSec = Number((6.2 + index * 1.7 + (slotIndex % 4) * 1.1).toFixed(1));
+      return {
+        ...item,
+        totalPackets: distribution.total,
+        exceedPackets: distribution.exceedPackets,
+        exceedRatio: distribution.exceedRatio,
+        dominantBucket: distribution.dominantBucketLabel,
+        p99Bucket: distribution.p99BucketLabel,
+        maxBucket: distribution.maxBucketLabel,
+        longestBurstSec,
+        queueDelayMaxUs: 96 + index * 24 + (slotIndex % 5) * 14,
+        distribution
+      };
+    });
+  }
+
+  function buildQueueDelayInsights(flow, slotIndex) {
+    const pathMode = flow.pathSource === 'FLOW_TRACKER' ? '观测路径' : '推算路径';
+    return {
+      headline: `${pathMode}下的关键热点集中在 Spine 出口方向，长尾时延与 ECN / PFC 告警存在时间重叠。`,
+      bullets: [
+        'GiO/1 与 GiO/2 在当前时间片出现 >100μs 桶计数抬升，说明队列已进入明显长尾区间。',
+        '高时延占比峰值与 PFC / ECN 曲线同步抬升，更像是微突发与缓存压力叠加，而非单点链路抖动。',
+        '若 Leaf / Spine 配置未见异常，建议继续核查 headroom、水线和无损模板一致性。'
+      ],
+      recommendations: ['联动查看 PFC告警', '联动查看 队列长度超限', '导出该时间片诊断摘要']
+    };
+  }
+
+  function buildQueueDelayView(flow, slotIndex) {
+    const records = buildQueueDelayRecords(slotIndex);
+    const distributions = Object.fromEntries(records.map((record) => [record.port, record.distribution]));
+    return {
+      title: '队列时延超限',
+      subtitle: '基于 LDH 队列级采样识别路径节点的长尾时延与微突发拥塞风险',
+      description: '该视图展示的是设备/接口队列级时延分布，适合判断长尾抬升与超限持续时间，不代表单流逐包精确时延。',
+      tags: [
+        { label: 'LDH队列级监控', tone: 'info' },
+        { label: '设备级指标，非逐流', tone: 'warning' },
+        { label: '当前窗口 06:25 - 06:35', tone: 'neutral' }
+      ],
+      thresholdUs: 100,
+      bucketThresholdIndex: 5,
+      ports: buildQueuePortList(),
+      queueDelayTrend: buildQueueDelayTrend(flow, slotIndex),
+      exceedTrend: buildQueueDelayExceedTrend(slotIndex),
+      records,
+      distributions,
+      insights: buildQueueDelayInsights(flow, slotIndex)
     };
   }
 
@@ -931,14 +1062,102 @@ window.ROCE_MOCK_DATA = {
         expandedTable: buildQueueLengthExpandedTable()
       },
       queueDelayTrend: buildQueueDelayTrend(flow, slotIndex),
-      queueDelayView: {
-        title: '队列延迟占比',
-        ports: buildQueuePortList(),
-        chart: buildQueueLegendSeries(slotIndex + 1),
-        table: buildLatencyTable(),
-        detail: buildLatencyDetail()
-      }
+      queueDelayView: buildQueueDelayView(flow, slotIndex)
     };
+  }
+
+  function deepClone(value) {
+    return JSON.parse(JSON.stringify(value));
+  }
+
+  function createFallbackNodeLabel(label) {
+    const lower = String(label || '').toLowerCase();
+    if (lower.includes('spine')) {
+      return String(label).replace(/(\d+)/, (match) => String(Number(match) + 1));
+    }
+    if (lower.includes('leaf')) {
+      return String(label).replace(/(\d+)/, (match) => String(Number(match) + 1));
+    }
+    return `${label}-fb`;
+  }
+
+  function createFallbackVariantFlow(flow) {
+    const variant = deepClone(flow);
+    variant.variantKey = 'fallback';
+    variant.variantLabel = 'Fallback ECMP备选路径';
+    variant.variantTone = 'fallback';
+    variant.summary = {
+      ...(variant.summary || {}),
+      pathType: 'Fallback ECMP备选路径 / 备选流向',
+      pathId: `${flow.summary?.pathId || flow.id}-FB`
+    };
+    variant.pathSource = 'AILB';
+    variant.pathSourceLabel = 'Fallback ECMP备选路径';
+    variant.topology = deepClone(flow.topology);
+    const switchNodes = (variant.topology.nodes || []).filter((node) => node.type !== 'server');
+    if (switchNodes[1]) {
+      switchNodes[1].label = createFallbackNodeLabel(switchNodes[1].label);
+      switchNodes[1].status = 'warning';
+      switchNodes[1].sub = String(switchNodes[1].sub || '').replace(/Eth1\/(\d+)/g, (_, port) => `Eth1/${Number(port) + 1}`);
+    }
+    if (switchNodes[2]) {
+      switchNodes[2].label = createFallbackNodeLabel(switchNodes[2].label);
+      switchNodes[2].status = 'normal';
+      switchNodes[2].sub = String(switchNodes[2].sub || '').replace(/Eth1\/(\d+)/g, (_, port) => `Eth1/${Number(port) + 2}`);
+    }
+    (variant.topology.links || []).forEach((link, index) => {
+      link.severity = index === 1 ? 'warning' : 'normal';
+      if (link.metrics) {
+        link.metrics = link.metrics
+          .replace(/(\d+(?:\.\d+)?)Gbps/, (_, value) => `${Math.max(6.8, Number(value) - 1.4).toFixed(1)}Gbps`)
+          .replace(/(\d+(?:\.\d+)?)μs/, (_, value) => `${Math.max(18, Number(value) * 0.72).toFixed(0)}μs`);
+      }
+      link.pathVariant = 'fallback';
+    });
+    variant.stateSummary = (variant.stateSummary || []).map((item, index) => {
+      if (index === 0) {
+        return { ...item, severity: 'warning', desc: '当前流量已切换到 Fallback ECMP 备选路径，主路径压力下降但整体时延仍高于健康基线。' };
+      }
+      if (index === 1) {
+        return { ...item, severity: 'warning', desc: 'Fallback 路径负载已生效，链路压力主要集中在备用 Spine 出口方向。' };
+      }
+      return item;
+    });
+    variant.trends = Object.fromEntries(Object.entries(flow.trends || {}).map(([metricKey, trend], index) => {
+      const factor = metricKey === 'throughput' ? 0.92 : metricKey === 'latency' ? 0.78 : metricKey === 'jitter' ? 0.82 : metricKey === 'loss' ? 0.68 : metricKey === 'pfc' ? 0.74 : 0.76;
+      return [metricKey, {
+        unit: trend.unit,
+        values: trend.values.map((value, trendIndex) => roundMetricValue(metricKey, value * factor * (1 + Math.sin((trendIndex + index + 1) * 0.32) * 0.03))),
+        alerts: (trend.alerts || []).filter((alertIndex) => alertIndex >= 2 && alertIndex <= 5)
+      }];
+    }));
+    variant.alarms = [
+      { level: 'warning', object: `${switchNodes[1]?.label || 'Spine-FB'} / Queue5`, time: flow.alarms?.[0]?.time || flow.lastActive, summary: 'Fallback 备选路径已承接流量，长尾时延仍有抬升但已低于主路径异常峰值。', action: '持续观察备用平面是否进一步升温' },
+      { level: 'warning', object: `${switchNodes[0]?.label || 'Leaf-FB'} / ECMP Group`, time: flow.alarms?.[1]?.time || flow.lastActive, summary: '检测到主路径失效后完成 ECMP 切换，建议同时排查 AILB 主路径恢复条件。', action: '联动查看主路径设备接口状态与 BGP 邻居' }
+    ];
+    variant.actions = [
+      '当前展示的是 Fallback ECMP 备选路径，建议同时保留 AILB 推算路径用于对比。',
+      '若备用路径压力持续升高，可切换队列时延与 PFC 下钻继续定位热点端口。'
+    ];
+    return variant;
+  }
+
+  function buildPathVariantData(flow, variantKey) {
+    const variantFlow = variantKey === 'fallback' ? createFallbackVariantFlow(flow) : deepClone(flow);
+    variantFlow.variantKey = variantKey;
+    if (variantKey !== 'fallback') {
+      variantFlow.variantLabel = 'AILB推算路径';
+      variantFlow.variantTone = 'ailb';
+      variantFlow.pathSourceLabel = 'AILB推算路径';
+      (variantFlow.topology?.links || []).forEach((link) => {
+        link.pathVariant = 'ailb';
+      });
+    }
+    variantFlow.alarmHeatmap = buildAlarmHeatmap(variantFlow);
+    variantFlow.detailView = buildDetailView(variantFlow);
+    const slots = variantFlow.alarmHeatmap?.slots || [];
+    variantFlow.drillDown = Object.fromEntries(slots.map((slot, slotIndex) => [slot, buildDrillDown(variantFlow, slotIndex)]));
+    return variantFlow;
   }
 
   data.flows.forEach((flow) => {
@@ -951,17 +1170,15 @@ window.ROCE_MOCK_DATA = {
     if (!flow.servicePort) {
       flow.servicePort = '4791';
     }
-    if (!flow.alarmHeatmap) {
-      flow.alarmHeatmap = buildAlarmHeatmap(flow);
+    const hasFallback = ['warning', 'critical'].includes(flow.status);
+    flow.pathVariants = {
+      ailb: buildPathVariantData(flow, 'ailb')
+    };
+    if (hasFallback) {
+      flow.pathVariants.fallback = buildPathVariantData(flow, 'fallback');
     }
-    if (!flow.detailView) {
-      flow.detailView = buildDetailView(flow);
-    }
-    if (!flow.drillDown) {
-      const slots = (flow.alarmHeatmap || buildAlarmHeatmap(flow)).slots || [];
-      flow.drillDown = Object.fromEntries(
-        slots.map((slot, slotIndex) => [slot, buildDrillDown(flow, slotIndex)])
-      );
-    }
+    flow.alarmHeatmap = flow.pathVariants.ailb.alarmHeatmap;
+    flow.detailView = flow.pathVariants.ailb.detailView;
+    flow.drillDown = flow.pathVariants.ailb.drillDown;
   });
 })();

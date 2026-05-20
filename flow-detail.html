@@ -64,7 +64,10 @@
         <div class="panel-header flow-detail-hero-header">
           <div>
             <h1 id="detailTitle">流路径详情</h1>
-            <span class="badge-path-source badge-source-ailb" id="detailPathSourceBadge">推算路径</span>
+            <div class="flow-detail-path-header-row">
+              <span class="badge-path-source badge-source-ailb" id="detailPathSourceBadge">推算路径</span>
+              <div class="path-variant-switcher" id="pathVariantSwitcher" aria-label="路径来源切换"></div>
+            </div>
           </div>
           <div class="flow-detail-actions">
             <a class="btn btn-secondary" href="index.html">返回列表</a>
@@ -94,6 +97,7 @@
               <p class="muted" id="topologyViewHint">当前展示主路径概览</p>
             </div>
             <div class="topology-toolbar">
+              <div class="topology-source-indicator" id="topologySourceIndicator">当前路径：AILB推算路径</div>
               <button class="btn btn-secondary btn-sm" id="viewInTopologyBtn" type="button">在拓扑中查看主路径</button>
             </div>
           </div>

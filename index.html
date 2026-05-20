@@ -124,57 +124,18 @@
         </div>
       </section>
 
-      <section class="panel overall-trend-panel">
+      <section class="panel flow-top5-panel">
         <div class="panel-header">
           <div>
-            <h2 data-i18n="overallTrendTitle">整体指标趋势</h2>
-            <p data-i18n="overallTrendSubtitle">汇总展示当前筛选条件下流相关的吞吐、时延、抖动、丢包、PFC、ECN 指标趋势</p>
+            <h2>异常流 Top5</h2>
+            <p>按流维度展示当前查询结果中时延、抖动、丢包最差的流；点击流项进入详情。</p>
           </div>
-          <span class="badge badge-light" data-i18n="overallTrendBadge">按当前筛选条件聚合</span>
+          <span class="badge badge-light">流级排序 · 非端口聚合</span>
         </div>
-        <div class="overall-trend-grid">
-          <div class="dark-card overall-trend-card">
-            <div class="overall-trend-card-header">
-              <h3 data-i18n="throughputTrend">吞吐趋势</h3>
-              <span class="trend-accent trend-accent-throughput"></span>
-            </div>
-            <div class="chart chart-compact" id="overallThroughputChart"></div>
-          </div>
-          <div class="dark-card overall-trend-card">
-            <div class="overall-trend-card-header">
-              <h3 data-i18n="latencyTrend">时延趋势</h3>
-              <span class="trend-accent trend-accent-latency"></span>
-            </div>
-            <div class="chart chart-compact" id="overallLatencyChart"></div>
-          </div>
-          <div class="dark-card overall-trend-card">
-            <div class="overall-trend-card-header">
-              <h3 data-i18n="jitterTrend">抖动趋势</h3>
-              <span class="trend-accent trend-accent-jitter"></span>
-            </div>
-            <div class="chart chart-compact" id="overallJitterChart"></div>
-          </div>
-          <div class="dark-card overall-trend-card">
-            <div class="overall-trend-card-header">
-              <h3 data-i18n="lossTrend">丢包趋势</h3>
-              <span class="trend-accent trend-accent-loss"></span>
-            </div>
-            <div class="chart chart-compact" id="overallLossChart"></div>
-          </div>
-          <div class="dark-card overall-trend-card">
-            <div class="overall-trend-card-header">
-              <h3 data-i18n="pfcTrend">PFC趋势</h3>
-              <span class="trend-accent trend-accent-pfc"></span>
-            </div>
-            <div class="chart chart-compact" id="overallPfcChart"></div>
-          </div>
-          <div class="dark-card overall-trend-card">
-            <div class="overall-trend-card-header">
-              <h3 data-i18n="ecnTrend">ECN趋势</h3>
-              <span class="trend-accent trend-accent-ecn"></span>
-            </div>
-            <div class="chart chart-compact" id="overallEcnChart"></div>
-          </div>
+        <div class="flow-top5-grid" id="flowTop5Grid">
+          <div class="dark-card flow-top5-card"><h3>时延最差 Top5</h3><div id="topLatencyFlows"></div></div>
+          <div class="dark-card flow-top5-card"><h3>抖动最差 Top5</h3><div id="topJitterFlows"></div></div>
+          <div class="dark-card flow-top5-card"><h3>丢包最多 Top5</h3><div id="topLossFlows"></div></div>
         </div>
       </section>
 
@@ -212,6 +173,10 @@
                 <th data-i18n="latency">端到端时延</th>
                 <th data-i18n="jitter">时延抖动</th>
                 <th data-i18n="loss">丢包数</th>
+                <th>PFC</th>
+                <th>ECN</th>
+                <th>NAK</th>
+                <th>CNP</th>
                 <th data-i18n="alarmColumn">告警</th>
                 <th data-i18n="lastActive">最近活跃</th>
                 <th data-i18n="pathSource">路径来源</th>
