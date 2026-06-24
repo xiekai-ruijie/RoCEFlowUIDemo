@@ -28,11 +28,7 @@ jobs:
       - name: Prepare static site artifact
         run: |
           mkdir -p dist
-          cp index.html dist/
-          cp home.html dist/
-          cp fault-diagnosis.html dist/
-          cp flow-detail.html dist/
-          cp ai_dev_tools_encyclopedia_card.html dist/
+          cp *.html dist/
           cp .nojekyll dist/
           cp -R assets dist/assets
 
