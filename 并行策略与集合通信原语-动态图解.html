@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>并行策略与集合通信原语 — 动态图解</title>
+<style>
+:root{--bg:#0b1120;--bg2:#16233d;--bd:#2a3f6b;--tx:#e2e8f0;--txd:#94a3b8;--cyan:#06b6d4;--pur:#8b5cf6;--grn:#10b981;--org:#f97316;--yel:#eab308;--red:#ef4444;--rad:10px}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;background:var(--bg);color:var(--tx);line-height:1.7;overflow-x:hidden}
+
+/* NAV */
+#nav{position:fixed;top:0;left:0;width:220px;height:100vh;background:#0d1629;border-right:1px solid var(--bd);overflow-y:auto;z-index:100}
+#nav .logo{padding:20px 16px 12px;font-size:15px;font-weight:700;color:var(--cyan);border-bottom:1px solid var(--bd)}
+#nav .logo small{font-size:10px;color:var(--txd);display:block;margin-top:4px}
+#nav a{display:block;padding:9px 18px;color:var(--txd);text-decoration:none;font-size:13px;border-left:3px solid transparent;transition:.2s}
+#nav a:hover{color:var(--tx);background:rgba(6,182,212,.05)}
+#nav a.act{color:var(--cyan);border-left-color:var(--cyan);background:rgba(6,182,212,.08)}
+
+#main{margin-left:220px;padding:0 40px 80px;max-width:960px}
+section{padding:44px 0 20px;border-bottom:1px solid rgba(42,63,107,.3)}
+h2{font-size:24px;font-weight:700;color:#f1f5f9;margin-bottom:12px}
+h3{font-size:18px;font-weight:600;color:var(--cyan);margin:24px 0 8px}
+p{font-size:14px;margin-bottom:12px}
+.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600;margin-bottom:6px}
+.b1{background:rgba(16,185,129,.15);color:var(--grn)}
+.b2{background:rgba(249,115,22,.15);color:var(--org)}
+.b3{background:rgba(139,92,246,.15);color:var(--pur)}
+.b4{background:rgba(234,179,8,.15);color:var(--yel)}
+.callout{background:rgba(6,182,212,.06);border-left:3px solid var(--cyan);padding:12px 16px;border-radius:0 8px 8px 0;margin:14px 0;font-size:13px}
+.callout strong{color:var(--cyan)}
+
+/* PLAYER */
+.player{background:var(--bg2);border:1px solid var(--bd);border-radius:var(--rad);padding:20px;margin:16px 0;transition:border-color .3s}
+.player:hover{border-color:var(--cyan)}
+.player .ph{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:12px}
+.player .ph h4{font-size:16px;color:#f1f5f9;margin:0}
+.player .ph .use{font-size:12px;color:var(--cyan);background:rgba(6,182,212,.08);padding:4px 10px;border-radius:6px;white-space:nowrap}
+.player .svg-wrap{margin:8px 0}
+.player .svg-wrap svg{width:100%;display:block;max-width:560px;margin:0 auto}
+.player .ctrl{display:flex;align-items:center;gap:8px;margin-top:12px;flex-wrap:wrap}
+.btn{padding:7px 16px;border-radius:8px;border:none;cursor:pointer;font-size:13px;font-weight:600;transition:.2s}
+.btn-p{background:var(--cyan);color:#0b1120}.btn-p:hover{background:#22d3ee}
+.btn-s{background:var(--bd);color:var(--tx)}.btn-s:hover{background:#345286}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.step-info{font-size:13px;color:var(--txd)}.step-info strong{color:var(--cyan)}
+.sdesc{font-size:13px;color:var(--tx);margin-top:8px;padding:8px 12px;background:#0d1629;border-radius:6px;min-height:32px}
+.phase{padding:3px 10px;border-radius:5px;font-size:11px;font-weight:700;letter-spacing:.3px}
+.ph-idle{background:rgba(148,163,184,.12);color:var(--txd)}
+.ph-rs{background:rgba(249,115,22,.12);color:var(--org)}
+.ph-ag{background:rgba(16,185,129,.12);color:var(--grn)}
+.ph-done{background:rgba(6,182,212,.12);color:var(--cyan)}
+
+/* GRID LAYOUT */
+.pgrid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:16px 0}
+@media(max-width:700px){.pgrid{grid-template-columns:1fr}}
+
+/* ANIMATED FLOW ARROWS */
+.flow-arr{stroke-dasharray:5,3;animation:flowDash .8s linear infinite}
+@keyframes flowDash{to{stroke-dashoffset:-8}}
+
+/* RESPONSIVE */
+@media(max-width:860px){#nav{transform:translateX(-100%)}#main{margin-left:0;padding:0 16px 60px}}
+</style>
+</head>
+<body>
+
+<nav id="nav">
+  <div class="logo">并行策略与集合通信<small>动态图解 · 数据块移动演示</small></div>
+  <a href="#sec-dp">数据并行 (DP)</a>
+  <a href="#sec-tp">张量并行 (TP)</a>
+  <a href="#sec-pp">流水线并行 (PP)</a>
+  <a href="#sec-ep">专家并行 (EP)</a>
+  <a href="#sec-3d">3D 混合并行</a>
+  <a href="#sec-bcast">Broadcast</a>
+  <a href="#sec-scatter">Scatter</a>
+  <a href="#sec-gather">Gather</a>
+  <a href="#sec-reduce">Reduce</a>
+  <a href="#sec-rs">ReduceScatter</a>
+  <a href="#sec-ag">AllGather</a>
+  <a href="#sec-ar">AllReduce</a>
+  <a href="#sec-a2a">All-to-All</a>
+  <a href="#sec-sr">Send/Recv</a>
+  <a href="#sec-ring">Ring AllReduce</a>
+</nav>
+
+<div id="main">
+
+<!-- DP -->
+<section id="sec-dp">
+  <h2>数据并行 (Data Parallelism)</h2>
+  <p>每张 GPU 持有完整模型副本，处理不同数据批次。训练后通过 AllReduce 同步梯度。</p>
+  <div class="pgrid">
+    <div class="player" id="dp-player"></div>
+  </div>
+  <div class="callout"><strong>流量特征：</strong>AllReduce 通信，周期性同步突发，节点间流量大。通信反演可识别 Ring/HD/DBT 等具体算法。</div>
+</section>
+
+<!-- TP -->
+<section id="sec-tp">
+  <h2>张量并行 (Tensor Parallelism)</h2>
+  <p>模型参数水平切分到多张 GPU，每层计算后通过 AllReduce 同步激活值。通常限制在同一节点内（NVLink）。</p>
+  <div class="pgrid">
+    <div class="player" id="tp-player"></div>
+  </div>
+</section>
+
+<!-- PP -->
+<section id="sec-pp">
+  <h2>流水线并行 (Pipeline Parallelism)</h2>
+  <p>模型按层切分为多个 Stage，数据像流水线流过各 Stage，相邻 Stage 通过 Send/Recv 同步。</p>
+  <div class="pgrid">
+    <div class="player" id="pp-player"></div>
+  </div>
+</section>
+
+<!-- EP -->
+<section id="sec-ep">
+  <h2>专家并行 (Expert Parallelism)</h2>
+  <p>MoE 模型中不同 token 路由到不同专家。通过 All-to-All 做 token 的跨 GPU 分发和收集。</p>
+  <div class="pgrid">
+    <div class="player" id="ep-player"></div>
+  </div>
+</section>
+
+<!-- 3D -->
+<section id="sec-3d">
+  <h2>3D 混合并行</h2>
+  <p>节点内 TP（NVLink） + 节点间 DP（RoCEv2 AllReduce） + 跨 Pod PP（P2P）。反演算法需识别这些混合模式。</p>
+  <svg viewBox="0 0 700 300" width="100%" style="max-width:700px;display:block;margin:12px auto">
+    <rect x="10" y="10" width="330" height="110" rx="10" fill="#0d1629" stroke="#8b5cf6" stroke-width="2"/>
+    <text x="175" y="30" text-anchor="middle" fill="#8b5cf6" font-size="13" font-weight="700">Node 1: TP=4</text>
+    <circle cx="70" cy="70" r="22" fill="#1a2f55" stroke="#8b5cf6"/><text x="70" y="74" text-anchor="middle" fill="#fff" font-size="10">G0</text>
+    <circle cx="140" cy="70" r="22" fill="#1a2f55" stroke="#8b5cf6"/><text x="140" y="74" text-anchor="middle" fill="#fff" font-size="10">G1</text>
+    <circle cx="210" cy="70" r="22" fill="#1a2f55" stroke="#8b5cf6"/><text x="210" y="74" text-anchor="middle" fill="#fff" font-size="10">G2</text>
+    <circle cx="280" cy="70" r="22" fill="#1a2f55" stroke="#8b5cf6"/><text x="280" y="74" text-anchor="middle" fill="#fff" font-size="10">G3</text>
+    <line x1="92" y1="70" x2="118" y2="70" stroke="#06b6d4" stroke-width="2" class="flow-arr"/>
+    <line x1="162" y1="70" x2="188" y2="70" stroke="#06b6d4" stroke-width="2" class="flow-arr"/>
+    <line x1="232" y1="70" x2="258" y2="70" stroke="#06b6d4" stroke-width="2" class="flow-arr"/>
+    <text x="175" y="100" text-anchor="middle" fill="#06b6d4" font-size="10">NVLink AllReduce</text>
+
+    <rect x="360" y="10" width="330" height="110" rx="10" fill="#0d1629" stroke="#f97316" stroke-width="2"/>
+    <text x="525" y="30" text-anchor="middle" fill="#f97316" font-size="13" font-weight="700">Node 2: TP=4</text>
+    <circle cx="420" cy="70" r="22" fill="#1a2f55" stroke="#f97316"/><text x="420" y="74" text-anchor="middle" fill="#fff" font-size="10">G4</text>
+    <circle cx="490" cy="70" r="22" fill="#1a2f55" stroke="#f97316"/><text x="490" y="74" text-anchor="middle" fill="#fff" font-size="10">G5</text>
+    <circle cx="560" cy="70" r="22" fill="#1a2f55" stroke="#f97316"/><text x="560" y="74" text-anchor="middle" fill="#fff" font-size="10">G6</text>
+    <circle cx="630" cy="70" r="22" fill="#1a2f55" stroke="#f97316"/><text x="630" y="74" text-anchor="middle" fill="#fff" font-size="10">G7</text>
+    <line x1="442" y1="70" x2="468" y2="70" stroke="#06b6d4" stroke-width="2" class="flow-arr"/>
+    <line x1="512" y1="70" x2="538" y2="70" stroke="#06b6d4" stroke-width="2" class="flow-arr"/>
+    <line x1="582" y1="70" x2="608" y2="70" stroke="#06b6d4" stroke-width="2" class="flow-arr"/>
+    <text x="525" y="100" text-anchor="middle" fill="#06b6d4" font-size="10">NVLink AllReduce</text>
+
+    <!-- DP arrows -->
+    <path d="M340 50 L360 50" stroke="#10b981" stroke-width="2" class="flow-arr"/>
+    <path d="M340 80 L360 80" stroke="#10b981" stroke-width="2" class="flow-arr"/>
+    <text x="350" y="38" text-anchor="middle" fill="#10b981" font-size="10">DP AllReduce</text>
+
+    <!-- PP section -->
+    <rect x="10" y="140" width="680" height="140" rx="10" fill="#0d1629" stroke="#2a3f6b"/>
+    <text x="350" y="162" text-anchor="middle" fill="#06b6d4" font-size="13" font-weight="700">Pipeline Stages (PP)</text>
+    <rect x="30" y="180" width="180" height="60" rx="6" fill="#16233d" stroke="#8b5cf6"/><text x="120" y="215" text-anchor="middle" fill="#8b5cf6" font-size="12">Stage 0 (L0-L5)</text>
+    <rect x="250" y="180" width="180" height="60" rx="6" fill="#16233d" stroke="#f97316"/><text x="340" y="215" text-anchor="middle" fill="#f97316" font-size="12">Stage 1 (L6-L10)</text>
+    <rect x="470" y="180" width="180" height="60" rx="6" fill="#16233d" stroke="#10b981"/><text x="560" y="215" text-anchor="middle" fill="#10b981" font-size="12">Stage 2 (L11-L15)</text>
+    <path d="M210 210 L250 210" stroke="#eab308" stroke-width="2" class="flow-arr"/>
+    <path d="M430 210 L470 210" stroke="#eab308" stroke-width="2" class="flow-arr"/>
+    <text x="350" y="258" text-anchor="middle" fill="#eab308" font-size="10">P2P Send/Recv (流水线)</text>
+  </svg>
+</section>
+
+<!-- Primitives -->
+<section id="sec-bcast">
+  <h2>Broadcast（广播）</h2>
+  <p>一个 GPU 将数据完整复制到所有其他 GPU。操作后所有 GPU 数据相同。</p>
+  <div class="player" id="anim-bcast"></div>
+</section>
+
+<section id="sec-scatter">
+  <h2>Scatter（散发）</h2>
+  <p>一个 GPU 将数据分成 N 份，每份发给一个 GPU。各 GPU 拥有不同数据片段。</p>
+  <div class="player" id="anim-scatter"></div>
+</section>
+
+<section id="sec-gather">
+  <h2>Gather（收集）</h2>
+  <p>所有 GPU 将各自数据发送到一个目标 GPU。与 Scatter 相反。</p>
+  <div class="player" id="anim-gather"></div>
+</section>
+
+<section id="sec-reduce">
+  <h2>Reduce（归约）</h2>
+  <p>所有 GPU 数据经 SUM/MAX 等运算，结果只留在一个 GPU 上。</p>
+  <div class="player" id="anim-reduce"></div>
+</section>
+
+<section id="sec-rs">
+  <h2>ReduceScatter（归约散发）</h2>
+  <p>先按维度做 Reduce，再将结果 Scatter 到各 GPU。每个 GPU 获得一部分归约结果。AllReduce 的第一阶段。</p>
+  <div class="player" id="anim-rs"></div>
+</section>
+
+<section id="sec-ag">
+  <h2>AllGather（全收集）</h2>
+  <p>所有 GPU 都获得所有 GPU 的数据。AllReduce 的第二阶段。</p>
+  <div class="player" id="anim-ag"></div>
+</section>
+
+<section id="sec-ar">
+  <h2>AllReduce（全归约）★</h2>
+  <p>所有 GPU 数据做 Reduce 后，结果分发到所有 GPU。训练中最核心的原语。下面演示两种实现方式。</p>
+  <div class="pgrid">
+    <div class="player" id="anim-ar-tree"></div>
+    <div class="player" id="anim-ar-ring"></div>
+  </div>
+</section>
+
+<section id="sec-a2a">
+  <h2>All-to-All（全交换）</h2>
+  <p>每个 GPU 向其他所有 GPU 发送不同的数据片段，同时收集来自所有 GPU 的数据。区别于 AllGather（AllGather 各 GPU 收到相同数据）。</p>
+  <div class="player" id="anim-a2a"></div>
+</section>
+
+<section id="sec-sr">
+  <h2>Send / Recv（点对点）</h2>
+  <p>两个 GPU 之间的直接数据传输。流水线并行中相邻 Stage 之间传递激活和梯度。</p>
+  <div class="player" id="anim-sr"></div>
+</section>
+
+<section id="sec-ring">
+  <h2>Ring AllReduce 逐步演示</h2>
+  <p>N 个 GPU 排成逻辑环，每个 GPU 只向右邻居发送、从左邻居接收。分 ReduceScatter（3 步）和 AllGather（3 步）两阶段。点击"下一步"逐步体验数据块在环上的传递和累加。</p>
+  <div class="callout"><strong>通信量：</strong>单 GPU 总量 = 2×(N-1)×AllSize/N ≈ 2×AllSize，与 GPU 数量无关。</div>
+  <div class="player" id="anim-ring"></div>
+</section>
+
+</div>
+
+<script>
+// === CONSTANTS ===
+const NS='http://www.w3.org/2000/svg';
+const BW=28,BH=18,GPU_R=26;
+
+const LAYOUTS={
+  grid:[{x:150,y:80},{x:450,y:80},{x:150,y:240},{x:450,y:240}],
+  line:[{x:80,y:100},{x:240,y:100},{x:400,y:100},{x:560,y:100}],
+  ring:[{x:250,y:55},{x:430,y:180},{x:250,y:305},{x:70,y:180}],
+  pair:[{x:160,y:120},{x:400,y:120}]
+};
+
+const COLORS={a:'#8b5cf6',A:'#8b5cf6',b:'#10b981',B:'#10b981',c:'#f97316',C:'#f97316',d:'#eab308',D:'#eab308',Σ:'#06b6d4',S:'#06b6d4',s:'#06b6d4'};
+function bColor(l){return COLORS[l[0]]||'#64748b'}
+
+function svgEl(tag,a={}){const e=document.createElementNS(NS,tag);for(const[k,v]of Object.entries(a))e.setAttribute(k,v);return e}
+
+// === BLOCK POSITION ===
+function blkXY(gpu,slot,total,lname){
+  const g=LAYOUTS[lname][gpu];
+  const gap=3;
+  const tw=total*BW+(total-1)*gap;
+  const sx=g.x-tw/2;
+  return{x:sx+slot*(BW+gap),y:g.y+GPU_R+10};
+}
+
+// === PLAYER CLASS ===
+class Player{
+  constructor(id){
+    this.id=id;this.step=0;this.sc=null;this.state=null;this.playing=false;this.timer=null;
+    this.el=document.getElementById(id);
+    this.build();
+  }
+  build(){
+    this.el.innerHTML=`
+      <div class="ph"><div><h4 class="pt"></h4><p class="pd" style="font-size:13px;color:var(--txd);margin:2px 0 0"></p></div><span class="use"></span></div>
+      <div class="svg-wrap"></div>
+      <div class="ctrl">
+        <button class="btn btn-s prev">◀ 上一步</button>
+        <button class="btn btn-p next">下一步 ▶</button>
+        <button class="btn btn-s playbtn">▶ 自动</button>
+        <button class="btn btn-s resetbtn">↺ 重置</button>
+        <span class="step-info">步骤 <strong class="sn">0</strong>/<strong class="st">0</strong></span>
+        <span class="phase ph-idle" id="ph-${this.id}">就绪</span>
+      </div>
+      <div class="sdesc" id="sd-${this.id}">点击「下一步」开始演示</div>`;
+    this.el.querySelector('.prev').onclick=()=>this.prev();
+    this.el.querySelector('.next').onclick=()=>this.next();
+    this.el.querySelector('.resetbtn').onclick=()=>this.reset();
+    this.el.querySelector('.playbtn').onclick=()=>this.togglePlay();
+  }
+  load(sc){
+    this.sc=sc;this.step=0;
+    this.state=JSON.parse(JSON.stringify(sc.initial));
+    this.el.querySelector('.pt').textContent=sc.title;
+    this.el.querySelector('.pd').textContent=sc.desc;
+    this.el.querySelector('.use').textContent='用途: '+sc.use;
+    this.createSVG();
+    this.drawNodes();
+    this.drawBlocks();
+    this.updUI();
+  }
+  createSVG(){
+    const dim=sc_layout_dim(this.sc.layout);
+    const wrap=this.el.querySelector('.svg-wrap');
+    wrap.innerHTML=`<svg viewBox="${dim}" xmlns="${NS}" style="width:100%;max-width:560px;display:block;margin:0 auto"></svg>`;
+    this.svg=wrap.querySelector('svg');
+    this.bgLayer=svgEl('g',{class:'bg'});
+    this.blkLayer=svgEl('g',{class:'blk'});
+    this.animLayer=svgEl('g',{class:'anim'});
+    this.svg.appendChild(this.bgLayer);
+    this.svg.appendChild(this.blkLayer);
+    this.svg.appendChild(this.animLayer);
+  }
+  drawNodes(){
+    const ly=LAYOUTS[this.sc.layout];
+    ly.forEach((p,i)=>{
+      if(i>=this.sc.nodeCount)return;
+      const c=svgEl('circle',{cx:p.x,cy:p.y,r:GPU_R,fill:'#1a2f55',stroke:'#06b6d4','stroke-width':2});
+      this.bgLayer.appendChild(c);
+      const t=svgEl('text',{x:p.x,y:p.y+5,'text-anchor':'middle',fill:'#06b6d4','font-size':13,'font-weight':700});
+      t.textContent=this.sc.nodeLabels?this.sc.nodeLabels[i]:`GPU ${i}`;
+      this.bgLayer.appendChild(t);
+    });
+    // connection lines
+    if(this.sc.layout==='ring'&&this.sc.nodeCount>=3){
+      const n=this.sc.nodeCount;
+      for(let i=0;i<n;i++){
+        const j=(i+1)%n;
+        const p1=ly[i],p2=ly[j];
+        const l=svgEl('line',{x1:p1.x,y1:p1.y,x2:p2.x,y2:p2.y,stroke:'#2a3f6b','stroke-width':1,'stroke-dasharray':4});
+        this.bgLayer.appendChild(l);
+        // arrow direction marker
+        const mx=(p1.x+p2.x)/2,my=(p1.y+p2.y)/2;
+        const at=svgEl('text',{x:mx,y:my-8,'text-anchor':'middle',fill:'#2a3f6b','font-size':9});
+        at.textContent='→';
+        this.bgLayer.appendChild(at);
+      }
+    }
+  }
+  drawBlocks(){
+    this.blkLayer.innerHTML='';
+    for(let g=0;g<this.sc.nodeCount;g++){
+      const blks=this.state[g]||[];
+      blks.forEach((label,slot)=>{
+        const pos=blkXY(g,slot,blks.length,this.sc.layout);
+        const blk=this.mkBlock(label,pos.x,pos.y);
+        this.blkLayer.appendChild(blk);
+      });
+    }
+  }
+  mkBlock(label,x,y){
+    const color=bColor(label);
+    const g=svgEl('g',{transform:`translate(${x},${y})`});
+    g.appendChild(svgEl('rect',{width:BW,height:BH,rx:4,fill:color,opacity:.85}));
+    const t=svgEl('text',{x:BW/2,y:BH/2+4,'text-anchor':'middle',fill:'#fff','font-size':label.length>3?7:9,'font-weight':600});
+    t.textContent=label;
+    g.appendChild(t);
+    return g;
+  }
+
+  next(){
+    if(!this.sc||this.step>=this.sc.steps.length)return;
+    const s=this.sc.steps[this.step];
+    const phEl=document.getElementById('ph-'+this.id);
+    phEl.className='phase '+s.phaseClass;
+    phEl.textContent=s.phase;
+    document.getElementById('sd-'+this.id).textContent=s.desc;
+
+    let delay=0;
+    s.moves.forEach(m=>{
+      setTimeout(()=>this.animMove(m[0],m[1],m[2]),delay);
+      delay+=180;
+    });
+
+    const totalDelay=delay+750;
+    setTimeout(()=>{
+      if(s.result)this.state=JSON.parse(JSON.stringify(s.result));
+      this.drawBlocks();
+      this.step++;
+      this.updUI();
+      if(this.playing&&this.step<this.sc.steps.length){
+        this.timer=setTimeout(()=>this.next(),800);
+      }else if(this.playing){
+        this.playing=false;this.updPlayBtn();
+      }
+    },totalDelay);
+  }
+  animMove(from,to,label){
+    const ly=LAYOUTS[this.sc.layout];
+    const src=ly[from];
+    const dst=ly[to];
+    const blk=this.mkBlock(label,src.x-BW/2,src.y-BH/2);
+    blk.style.transition='transform 0.65s cubic-bezier(0.4,0,0.2,1)';
+    this.animLayer.appendChild(blk);
+    // dest position (center of dest GPU block area)
+    const dstX=dst.x-BW/2;
+    const dstY=dst.y+GPU_R+10-BH/2;
+    requestAnimationFrame(()=>{
+      requestAnimationFrame(()=>{
+        blk.style.transform=`translate(${dstX}px,${dstY}px)`;
+      });
+    });
+    setTimeout(()=>blk.remove(),700);
+  }
+  prev(){
+    if(!this.sc||this.step<=0)return;
+    this.step--;
+    this.state=JSON.parse(JSON.stringify(this.sc.initial));
+    for(let i=0;i<this.step;i++){
+      if(this.sc.steps[i].result)this.state=JSON.parse(JSON.stringify(this.sc.steps[i].result));
+    }
+    this.drawBlocks();
+    const phEl=document.getElementById('ph-'+this.id);
+    if(this.step>0){
+      const s=this.sc.steps[this.step-1];
+      phEl.className='phase '+s.phaseClass;phEl.textContent=s.phase;
+      document.getElementById('sd-'+this.id).textContent=s.desc;
+    }else{
+      phEl.className='phase ph-idle';phEl.textContent='就绪';
+      document.getElementById('sd-'+this.id).textContent='点击「下一步」开始演示';
+    }
+    this.updUI();
+  }
+  reset(){
+    this.stopPlay();
+    this.step=0;
+    this.state=JSON.parse(JSON.stringify(this.sc.initial));
+    this.drawBlocks();
+    document.getElementById('ph-'+this.id).className='phase ph-idle';
+    document.getElementById('ph-'+this.id).textContent='就绪';
+    document.getElementById('sd-'+this.id).textContent='点击「下一步」开始演示';
+    this.updUI();
+  }
+  togglePlay(){
+    if(this.playing){this.stopPlay();return}
+    this.playing=true;this.updPlayBtn();
+    if(this.step>=this.sc.steps.length)this.reset();
+    setTimeout(()=>this.next(),400);
+  }
+  stopPlay(){this.playing=false;if(this.timer){clearTimeout(this.timer);this.timer=null}this.updPlayBtn()}
+  updPlayBtn(){this.el.querySelector('.playbtn').textContent=this.playing?'⏸ 暂停':'▶ 自动'}
+  updUI(){
+    const tot=this.sc?this.sc.steps.length:0;
+    this.el.querySelector('.sn').textContent=this.step;
+    this.el.querySelector('.st').textContent=tot;
+    this.el.querySelector('.prev').disabled=this.step===0;
+    this.el.querySelector('.next').disabled=!this.sc||this.step>=this.sc.steps.length;
+  }
+}
+
+function sc_layout_dim(ly){
+  if(ly==='ring')return'0 0 500 360';
+  if(ly==='pair')return'0 0 560 240';
+  return'0 0 600 300';
+}
+
+// === SCENARIOS ===
+const SC={};
+
+SC.bcast={
+  title:'Broadcast（广播）',desc:'GPU 0 将数据 A 广播给所有其他 GPU',use:'模型参数初始化同步',
+  layout:'grid',nodeCount:4,
+  initial:{0:['A'],1:[],2:[],3:[]},
+  steps:[
+    {desc:'GPU 0 将数据 A 同时复制给 GPU 1、2、3 — 操作后所有 GPU 拥有相同数据',phase:'Broadcast',phaseClass:'ph-done',
+     moves:[[0,1,'A'],[0,2,'A'],[0,3,'A']],
+     result:{0:['A'],1:['A'],2:['A'],3:['A']}
+    }
+  ]
+};
+
+SC.scatter={
+  title:'Scatter（散发）',desc:'GPU 0 将数据分成 4 份，每份发给不同 GPU',use:'张量并行初始化参数分发',
+  layout:'grid',nodeCount:4,
+  initial:{0:['A','B','C','D'],1:[],2:[],3:[]},
+  steps:[
+    {desc:'GPU 0 将数据分片：A→GPU 0（保留），B→GPU 1，C→GPU 2，D→GPU 3',phase:'Scatter',phaseClass:'ph-rs',
+     moves:[[0,1,'B'],[0,2,'C'],[0,3,'D']],
+     result:{0:['A'],1:['B'],2:['C'],3:['D']}
+    }
+  ]
+};
+
+SC.gather={
+  title:'Gather（收集）',desc:'所有 GPU 将各自数据发送到 GPU 0',use:'张量并行结果汇总',
+  layout:'grid',nodeCount:4,
+  initial:{0:['A'],1:['B'],2:['C'],3:['D']},
+  steps:[
+    {desc:'GPU 1、2、3 将各自数据 B、C、D 发送给 GPU 0 — GPU 0 收集所有数据',phase:'Gather',phaseClass:'ph-ag',
+     moves:[[1,0,'B'],[2,0,'C'],[3,0,'D']],
+     result:{0:['A','B','C','D'],1:[],2:[],3:[]}
+    }
+  ]
+};
+
+SC.reduce={
+  title:'Reduce（归约 SUM）',desc:'所有 GPU 数据经 SUM 运算，结果归 GPU 0',use:'AllReduce 内部 reduce 步骤',
+  layout:'grid',nodeCount:4,
+  initial:{0:['A'],1:['B'],2:['C'],3:['D']},
+  steps:[
+    {desc:'步骤1: GPU 1 将 B 发送给 GPU 0，SUM: A+B',phase:'Reduce',phaseClass:'ph-rs',
+     moves:[[1,0,'B']],result:{0:['A+B'],1:[],2:['C'],3:['D']}
+    },
+    {desc:'步骤2: GPU 2 将 C 发送给 GPU 0，SUM: A+B+C',phase:'Reduce',phaseClass:'ph-rs',
+     moves:[[2,0,'C']],result:{0:['A+B+C'],1:[],2:[],3:['D']}
+    },
+    {desc:'步骤3: GPU 3 将 D 发送给 GPU 0，SUM: A+B+C+D = Σ — 归约完成',phase:'完成',phaseClass:'ph-done',
+     moves:[[3,0,'D']],result:{0:['Σ'],1:[],2:[],3:[]}
+    }
+  ]
+};
+
+SC.rs={
+  title:'ReduceScatter（归约散发）',desc:'先 Reduce 再 Scatter — 每个 GPU 获得一部分归约结果',use:'AllReduce 第一阶段；TP反向梯度',
+  layout:'grid',nodeCount:4,
+  initial:{0:['a0','b0','c0','d0'],1:['a1','b1','c1','d1'],2:['a2','b2','c2','d2'],3:['a3','b3','c3','d3']},
+  steps:[
+    {desc:'步骤1: 各 GPU 将 a 块归约到 GPU 0 — a0+a1+a2+a3 = Σa',phase:'ReduceScatter',phaseClass:'ph-rs',
+     moves:[[1,0,'a1'],[2,0,'a2'],[3,0,'a3']],
+     result:{0:['Σa','b0','c0','d0'],1:['b1','c1','d1'],2:['b2','c2','d2'],3:['b3','c3','d3']}
+    },
+    {desc:'步骤2: 各 GPU 将 b 块归约到 GPU 1 — Σb',phase:'ReduceScatter',phaseClass:'ph-rs',
+     moves:[[0,1,'b0'],[2,1,'b2'],[3,1,'b3']],
+     result:{0:['Σa','c0','d0'],1:['Σb','c1','d1'],2:['c2','d2'],3:['c3','d3']}
+    },
+    {desc:'步骤3: 各 GPU 将 c 块归约到 GPU 2、d 块归约到 GPU 3 — 每个GPU持有一个完整归约块',phase:'完成',phaseClass:'ph-done',
+     moves:[[0,2,'c0'],[1,2,'c1'],[3,2,'c3'],[0,3,'d0'],[1,3,'d1'],[2,3,'d2']],
+     result:{0:['Σa'],1:['Σb'],2:['Σc'],3:['Σd']}
+    }
+  ]
+};
+
+SC.ag={
+  title:'AllGather（全收集）',desc:'每个 GPU 将自己的归约块广播给所有其他 GPU',use:'AllReduce 第二阶段；TP前向输出',
+  layout:'grid',nodeCount:4,
+  initial:{0:['Σa'],1:['Σb'],2:['Σc'],3:['Σd']},
+  steps:[
+    {desc:'步骤1: GPU 0 发送 Σa 给 GPU 1、2、3',phase:'AllGather',phaseClass:'ph-ag',
+     moves:[[0,1,'Σa'],[0,2,'Σa'],[0,3,'Σa']],
+     result:{0:['Σa'],1:['Σa','Σb'],2:['Σa','Σc'],3:['Σa','Σd']}
+    },
+    {desc:'步骤2: GPU 1 发送 Σb 给 GPU 0、2、3',phase:'AllGather',phaseClass:'ph-ag',
+     moves:[[1,0,'Σb'],[1,2,'Σb'],[1,3,'Σb']],
+     result:{0:['Σa','Σb'],1:['Σa','Σb'],2:['Σa','Σb','Σc'],3:['Σa','Σb','Σd']}
+    },
+    {desc:'步骤3: GPU 2、3 发送 Σc、Σd 给其他 — 所有 GPU 获得完整结果！',phase:'完成',phaseClass:'ph-done',
+     moves:[[2,0,'Σc'],[2,1,'Σc'],[2,3,'Σc'],[3,0,'Σd'],[3,1,'Σd'],[3,2,'Σd']],
+     result:{0:['Σa','Σb','Σc','Σd'],1:['Σa','Σb','Σc','Σd'],2:['Σa','Σb','Σc','Σd'],3:['Σa','Σb','Σc','Σd']}
+    }
+  ]
+};
+
+SC.ar_tree={
+  title:'AllReduce 方式一: Reduce + Broadcast',desc:'先 Reduce 到 GPU 0，再 Broadcast — GPU 0 成为瓶颈',use:'不推荐，仅对比',
+  layout:'grid',nodeCount:4,
+  initial:{0:['A'],1:['B'],2:['C'],3:['D']},
+  steps:[
+    {desc:'步骤1: Reduce — 所有数据归约到 GPU 0 → Σ',phase:'Reduce',phaseClass:'ph-rs',
+     moves:[[1,0,'B'],[2,0,'C'],[3,0,'D']],
+     result:{0:['Σ'],1:[],2:[],3:[]}
+    },
+    {desc:'步骤2: Broadcast — GPU 0 将 Σ 广播给所有 GPU — 缺点: GPU 0 带宽瓶颈!',phase:'Broadcast',phaseClass:'ph-done',
+     moves:[[0,1,'Σ'],[0,2,'Σ'],[0,3,'Σ']],
+     result:{0:['Σ'],1:['Σ'],2:['Σ'],3:['Σ']}
+    }
+  ]
+};
+
+SC.ar_ring={
+  title:'AllReduce 方式二: ReduceScatter + AllGather ★',desc:'带宽均匀分散到所有 GPU，主流实现',use:'DP梯度同步；TP激活同步',
+  layout:'grid',nodeCount:4,
+  initial:{0:['a0','b0','c0','d0'],1:['a1','b1','c1','d1'],2:['a2','b2','c2','d2'],3:['a3','b3','c3','d3']},
+  steps:[
+    {desc:'步骤1: ReduceScatter — a 块归约到 GPU 0，b 到 GPU 1，c 到 GPU 2',phase:'RS',phaseClass:'ph-rs',
+     moves:[[1,0,'a1'],[2,0,'a2'],[3,0,'a3'],[0,1,'b0'],[2,1,'b2'],[3,1,'b3'],[0,2,'c0'],[1,2,'c1'],[3,2,'c3']],
+     result:{0:['Σa','d0'],1:['Σb','d1'],2:['Σc','d2'],3:['Σd','d3']}
+    },
+    {desc:'步骤2: AllGather — Σa、Σb、Σc 交换到所有 GPU',phase:'AG',phaseClass:'ph-ag',
+     moves:[[0,1,'Σa'],[0,2,'Σa'],[0,3,'Σa'],[1,0,'Σb'],[1,2,'Σb'],[1,3,'Σb'],[2,0,'Σc'],[2,1,'Σc'],[2,3,'Σc']],
+     result:{0:['Σa','Σb','Σc','d0'],1:['Σa','Σb','Σc','d1'],2:['Σa','Σb','Σc','d2'],3:['Σa','Σb','Σc','Σd']}
+    },
+    {desc:'步骤3: AllGather — Σd 交换到所有 GPU — AllReduce 完成! 🎉',phase:'完成',phaseClass:'ph-done',
+     moves:[[3,0,'Σd'],[3,1,'Σd'],[3,2,'Σd']],
+     result:{0:['Σa','Σb','Σc','Σd'],1:['Σa','Σb','Σc','Σd'],2:['Σa','Σb','Σc','Σd'],3:['Σa','Σb','Σc','Σd']}
+    }
+  ]
+};
+
+SC.a2a={
+  title:'All-to-All（全交换）',desc:'每个 GPU 向所有其他 GPU 发送不同的数据片段，同时收集来自所有 GPU 的数据',use:'MoE 专家并行 token 路由',
+  layout:'grid',nodeCount:4,
+  initial:{0:['→1','→2','→3'],1:['→0','→2','→3'],2:['→0','→1','→3'],3:['→0','→1','→2']},
+  steps:[
+    {desc:'每个 GPU 将自己的数据片段分发到目标 GPU — GPU0→1收到来自0的片段，GPU0→2收到来自2的片段...',phase:'All-to-All',phaseClass:'ph-done',
+     moves:[[0,1,'→1'],[0,2,'→2'],[0,3,'→3'],[1,0,'→0'],[1,2,'→2'],[1,3,'→3'],[2,0,'→0'],[2,1,'→1'],[2,3,'→3'],[3,0,'→0'],[3,1,'→1'],[3,2,'→2']],
+     result:{0:['from1','from2','from3'],1:['from0','from2','from3'],2:['from0','from1','from3'],3:['from0','from1','from2']}
+    }
+  ]
+};
+
+SC.sr={
+  title:'Send / Recv（点对点）',desc:'GPU 0 直接将数据发送给 GPU 1',use:'流水线并行相邻 Stage 传递',
+  layout:'pair',nodeCount:2,nodeLabels:['Stage 0','Stage 1'],
+  initial:{0:['Data'],1:[]},
+  steps:[
+    {desc:'Stage 0 通过 Send/Recv 将激活数据传递给 Stage 1',phase:'Send',phaseClass:'ph-done',
+     moves:[[0,1,'Data']],
+     result:{0:[],1:['Data']}
+    }
+  ]
+};
+
+// Ring AllReduce (detailed)
+SC.ring={
+  title:'Ring AllReduce — 4 GPU 环形逐步演示',desc:'数据块沿环传递，逐步累加。ReduceScatter(3步) + AllGather(3步)。',
+  use:'理解 Ring 拓扑反演的关键',layout:'ring',nodeCount:4,nodeLabels:['GPU 0','GPU 1','GPU 2','GPU 3'],
+  initial:{0:['a0','b0','c0','d0'],1:['a1','b1','c1','d1'],2:['a2','b2','c2','d2'],3:['a3','b3','c3','d3']},
+  steps:[
+    // RS step 1: send chunk to right neighbor
+    {desc:'RS 步骤1: 每个 GPU 发送 c 块给右邻居 — GPU0→GPU1, GPU1→GPU2, GPU2→GPU3, GPU3→GPU0',phase:'RS-1',phaseClass:'ph-rs',
+     moves:[[0,1,'c0'],[1,2,'c1'],[2,3,'c2'],[3,0,'c3']],
+     result:{0:['a0','b0','Σc','d0'],1:['a1','b1','Σc','d1'],2:['a2','b2','Σc','d2'],3:['a3','b3','Σc','d3']}
+    },
+    // RS step 2: send accumulated b chunk to right
+    {desc:'RS 步骤2: 每个 GPU 发送 b 块给右邻居，接收并累加',phase:'RS-2',phaseClass:'ph-rs',
+     moves:[[0,1,'b0'],[1,2,'b1'],[2,3,'b2'],[3,0,'b3']],
+     result:{0:['a0','Σb','Σc','d0'],1:['a1','Σb','Σc','d1'],2:['a2','Σb','Σc','d2'],3:['a3','Σb','Σc','d3']}
+    },
+    // RS step 3: send accumulated a chunk to right
+    {desc:'RS 步骤3: 每个 GPU 发送 a 块给右邻居 — ReduceScatter 完成，每个GPU持有一个完整归约块!',phase:'RS-3',phaseClass:'ph-rs',
+     moves:[[0,1,'a0'],[1,2,'a1'],[2,3,'a2'],[3,0,'a3']],
+     result:{0:['Σa','Σb','Σc','d0'],1:['Σa','Σb','Σc','d1'],2:['Σa','Σb','Σc','d2'],3:['Σa','Σb','Σc','d3']}
+    },
+    // AG step 1
+    {desc:'AG 步骤1: 每个 GPU 将完整归约块发给右邻居 — Σa→GPU1, Σd→GPU0, Σc→GPU3, Σb→GPU2',phase:'AG-1',phaseClass:'ph-ag',
+     moves:[[0,1,'Σa'],[1,2,'Σb'],[2,3,'Σc'],[3,0,'Σd']],
+     result:{0:['Σa','Σb','Σc','Σd'],1:['Σa','Σb','Σc','Σd'],2:['Σa','Σb','Σc','Σd'],3:['Σa','Σb','Σc','Σd']}
+    },
+    // (Simplified: after AG step 1, all GPUs already have all blocks in this simplified model)
+    {desc:'（简化演示）所有 GPU 已获得完整结果 — 实际 Ring AllGather 需要 N-1 步传递',phase:'完成',phaseClass:'ph-done',
+     moves:[],result:{0:['Σa','Σb','Σc','Σd'],1:['Σa','Σb','Σc','Σd'],2:['Σa','Σb','Σc','Σd'],3:['Σa','Σb','Σc','Σd']}
+    }
+  ]
+};
+
+// DP scenario
+SC.dp={
+  title:'数据并行 (DP) — AllReduce 同步梯度',desc:'不同 GPU 处理不同数据，通过 AllReduce 汇总梯度',use:'数据并行训练',
+  layout:'line',nodeCount:4,nodeLabels:['GPU 0','GPU 1','GPU 2','GPU 3'],
+  initial:{0:['Grad₀'],1:['Grad₁'],2:['Grad₂'],3:['Grad₃']},
+  steps:[
+    {desc:'步骤1: 各 GPU 计算出各自的梯度 Grad₀~₃',phase:'计算',phaseClass:'ph-idle',moves:[],result:{0:['Grad₀'],1:['Grad₁'],2:['Grad₂'],3:['Grad₃']}},
+    {desc:'步骤2: ReduceScatter — 各梯度块归约到不同 GPU',phase:'RS',phaseClass:'ph-rs',
+     moves:[[1,0,'Grad₁'],[2,0,'Grad₂'],[3,0,'Grad₃']],
+     result:{0:['ΣGrad'],1:[],2:[],3:[]}
+    },
+    {desc:'步骤3: AllGather — ΣGrad 广播给所有 GPU — 参数更新!',phase:'AG',phaseClass:'ph-done',
+     moves:[[0,1,'ΣGrad'],[0,2,'ΣGrad'],[0,3,'ΣGrad']],
+     result:{0:['ΣGrad'],1:['ΣGrad'],2:['ΣGrad'],3:['ΣGrad']}
+    }
+  ]
+};
+
+// TP scenario
+SC.tp={
+  title:'张量并行 (TP) — 模型切分 + AllReduce 同步',desc:'模型参数水平切分，计算后 AllReduce 同步激活值',use:'大模型单层参数过大',
+  layout:'line',nodeCount:4,nodeLabels:['GPU 0','GPU 1','GPU 2','GPU 3'],
+  initial:{0:['Part₀'],1:['Part₁'],2:['Part₂'],3:['Part₃']},
+  steps:[
+    {desc:'步骤1: 模型参数被 Scatter 到各 GPU (各持有一部分)',phase:'Scatter',phaseClass:'ph-rs',moves:[],result:{0:['Part₀'],1:['Part₁'],2:['Part₂'],3:['Part₃']}},
+    {desc:'步骤2: 各 GPU 分别计算自己的部分，然后 AllReduce 同步中间激活值',phase:'AllReduce',phaseClass:'ph-done',
+     moves:[[0,1,'Act₀'],[0,2,'Act₀'],[0,3,'Act₀'],[1,0,'Act₁'],[1,2,'Act₁'],[1,3,'Act₁'],[2,0,'Act₂'],[2,1,'Act₂'],[2,3,'Act₂'],[3,0,'Act₃'],[3,1,'Act₃'],[3,2,'Act₃']],
+     result:{0:['ΣAct'],1:['ΣAct'],2:['ΣAct'],3:['ΣAct']}
+    }
+  ]
+};
+
+// PP scenario
+SC.pp={
+  title:'流水线并行 (PP) — Stage 间 Send/Recv',desc:'模型按层切分为多个 Stage，数据流过各 Stage',use:'模型参数过大单卡无法加载',
+  layout:'pair',nodeCount:2,nodeLabels:['Stage 0 (L0-L5)','Stage 1 (L6-L10)'],
+  initial:{0:['激活₀'],1:[]},
+  steps:[
+    {desc:'步骤1: Stage 0 计算前向激活，通过 Send/Recv 传递给 Stage 1',phase:'Send',phaseClass:'ph-done',moves:[[0,1,'激活₀']],result:{0:[],1:['激活₀']}},
+    {desc:'步骤2: Stage 1 计算完毕，反向梯度通过 Send/Recv 回传给 Stage 0',phase:'Recv',phaseClass:'ph-ag',moves:[[1,0,'Grad']],result:{0:['Grad'],1:[]}
+    }
+  ]
+};
+
+// EP scenario
+SC.ep={
+  title:'专家并行 (EP) — All-to-All 路由',desc:'Token 通过 All-to-All 分发到各专家 GPU',use:'MoE 模型专家并行',
+  layout:'grid',nodeCount:4,nodeLabels:['GPU 0+Expert0','GPU 1+Expert1','GPU 2+Expert2','GPU 3+Expert3'],
+  initial:{0:['tok→E1','tok→E2','tok→E3'],1:['tok→E0','tok→E2','tok→E3'],2:['tok→E0','tok→E1','tok→E3'],3:['tok→E0','tok→E1','tok→E2']},
+  steps:[
+    {desc:'步骤1: All-to-All — 每个 GPU 将 token 分发到对应专家所在的 GPU',phase:'All-to-All',phaseClass:'ph-done',
+     moves:[[0,1,'tok→E1'],[0,2,'tok→E2'],[0,3,'tok→E3'],[1,0,'tok→E0'],[1,2,'tok→E2'],[1,3,'tok→E3'],[2,0,'tok→E0'],[2,1,'tok→E1'],[2,3,'tok→E3'],[3,0,'tok→E0'],[3,1,'tok→E1'],[3,2,'tok→E2']],
+     result:{0:['tok@E0'],1:['tok@E1'],2:['tok@E2'],3:['tok@E3']}
+    }
+  ]
+};
+
+// === INIT ===
+const players={};
+window.addEventListener('DOMContentLoaded',()=>{
+  const map={
+    'anim-bcast':'bcast','anim-scatter':'scatter','anim-gather':'gather',
+    'anim-reduce':'reduce','anim-rs':'rs','anim-ag':'ag',
+    'anim-ar-tree':'ar_tree','anim-ar-ring':'ar_ring',
+    'anim-a2a':'a2a','anim-sr':'sr','anim-ring':'ring',
+    'dp-player':'dp','tp-player':'tp','pp-player':'pp','ep-player':'ep'
+  };
+  Object.entries(map).forEach(([elId,scKey])=>{
+    const p=new Player(elId);
+    p.load(SC[scKey]);
+    players[scKey]=p;
+  });
+});
+
+// === SCROLL SPY ===
+const secs=document.querySelectorAll('section');
+const navAs=document.querySelectorAll('#nav a');
+window.addEventListener('scroll',()=>{
+  let cur='';
+  secs.forEach(s=>{if(window.scrollY>=s.offsetTop-80)cur=s.id});
+  navAs.forEach(a=>{a.classList.remove('act');if(a.getAttribute('href')==='#'+cur)a.classList.add('act')});
+});
+</script>
+</body>
+</html>
